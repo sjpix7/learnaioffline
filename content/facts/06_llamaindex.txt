@@ -1,0 +1,533 @@
+# LlamaIndex. Lessons: 1 overview, 2 documents/nodes/loading, 3 node parsers/ingestion, 4 indexes/storage, 5 retrievers/postprocessors/query engines, 6 chat engines/memory, 7 agents, 8 workflows, 9 evaluation/observability
+@ LlamaIndex | 1
+D: A Python framework for connecting LLMs to your data through ingestion, indexing, retrieval, agents and event-driven workflows.
+T: LlamaIndex specializes in data ingestion, indexing and retrieval for LLM apps.
+F: LlamaIndex is a model-serving engine like vLLM.
+C: from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+
+@ llama_index.core | 1
+D: The core package containing LlamaIndex's base abstractions such as indexes, retrievers, query engines and Settings.
+T: Integrations are installed as separate llama-index-* packages on top of llama-index-core.
+F: llama_index.core contains every vector database client.
+C: pip install llama-index-core llama-index-llms-anthropic
+
+@ LlamaHub | 1
+D: The registry of community integrations: data readers, tools, vector stores and more.
+U: You need a reader for Notion pages and Slack channels.
+T: LlamaHub hosts hundreds of data connectors.
+F: LlamaHub is LlamaIndex's hosted LLM.
+C: pip install llama-index-readers-notion
+
+@ LlamaParse | 2
+D: LlamaIndex's document parsing service that converts complex PDFs with tables and layouts into clean Markdown or JSON.
+U: Your PDFs have multi-column layouts and financial tables that plain text extraction mangles.
+T: LlamaParse can return results as Markdown.
+F: LlamaParse is a vector store.
+C: from llama_cloud_services import LlamaParse\ndocs = LlamaParse(result_type="markdown").load_data("report.pdf")
+
+@ Document | 2
+D: A container for a data source (file, page, row) with text and metadata.
+T: A Document can carry metadata such as source and year.
+F: A Document is always exactly one sentence long.
+C: Document(text="LlamaIndex connects LLMs to data.", metadata={"source": "intro.md"})
+
+@ Node | 2
+D: A chunk of a Document — the atomic unit that is embedded and retrieved, with metadata and relationships.
+T: Nodes keep relationships such as their source document and previous/next node.
+F: Nodes cannot carry metadata.
+C: from llama_index.core.schema import TextNode\nTextNode(text="a chunk", metadata={"page": 3})
+
+@ SimpleDirectoryReader | 2
+D: Built-in reader that loads files from a directory, handling PDF, DOCX, Markdown, CSV and more.
+U: You want to load every .md and .pdf file in a folder recursively.
+T: required_exts limits which file extensions are loaded.
+F: SimpleDirectoryReader can only read .txt files.
+C: SimpleDirectoryReader(input_dir="./docs", recursive=True, required_exts=[".pdf", ".md"]).load_data()
+B: docs = ____("data").load_data() ;; SimpleDirectoryReader ;; DirectoryLoader ;; FileReader ;; PDFReader
+
+@ excluded_embed_metadata_keys | 2
+D: Node setting that hides certain metadata keys from the text used for embedding.
+T: Metadata can be shown to the LLM but excluded from the embedding text.
+F: Excluded metadata keys are deleted from the node permanently.
+C: node.excluded_embed_metadata_keys = ["file_path"]
+
+@ Metadata filtering | 5
+D: Restricting retrieval to nodes whose metadata matches conditions such as year >= 2026.
+U: Only documents from the HR department and the current year should be searched.
+T: MetadataFilters can be passed to as_retriever(filters=...).
+F: Metadata filters are applied only after the LLM generates an answer.
+C: filters = MetadataFilters(filters=[MetadataFilter(key="year", value=2026, operator=FilterOperator.GTE)])\nindex.as_retriever(filters=filters)
+
+@ SentenceSplitter | 3
+D: The default node parser that creates token-sized chunks while respecting sentence boundaries.
+T: SentenceSplitter takes chunk_size and chunk_overlap arguments.
+F: SentenceSplitter splits strictly every N characters regardless of sentences.
+C: splitter = SentenceSplitter(chunk_size=512, chunk_overlap=50)\nnodes = splitter.get_nodes_from_documents(docs)
+B: splitter = ____(chunk_size=512, chunk_overlap=50) ;; SentenceSplitter ;; RecursiveCharacterTextSplitter ;; TokenSplitter ;; ChunkParser
+
+@ SemanticSplitterNodeParser | 3
+D: Node parser that splits text where embedding similarity between adjacent sentences drops.
+U: You want chunks that follow topic shifts instead of fixed sizes.
+T: Semantic splitting requires an embedding model.
+F: SemanticSplitterNodeParser splits only by character count.
+C: SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95, embed_model=embed_model)
+
+@ SentenceWindowNodeParser | 3
+D: Parser that creates one node per sentence and stores the surrounding sentences as a window in metadata.
+U: You want precise sentence-level matching but wider context for the LLM.
+T: It is used together with MetadataReplacementPostProcessor.
+F: SentenceWindowNodeParser deletes neighbouring sentences.
+C: SentenceWindowNodeParser.from_defaults(window_size=3)
+
+@ HierarchicalNodeParser | 3
+D: Parser that creates parent and child nodes at several chunk sizes, e.g. 2048, 512 and 128.
+T: Hierarchical nodes enable auto-merging retrieval.
+F: HierarchicalNodeParser produces only one chunk size.
+C: HierarchicalNodeParser.from_defaults(chunk_sizes=[2048, 512, 128])
+
+@ MarkdownNodeParser | 3
+D: Structure-aware parser that splits Markdown by headings.
+T: MarkdownNodeParser keeps document structure when splitting Markdown.
+F: MarkdownNodeParser converts Markdown into images.
+C: MarkdownNodeParser().get_nodes_from_documents(md_docs)
+
+@ CodeSplitter | 3
+D: Language-aware splitter that chunks source code along syntactic boundaries.
+T: CodeSplitter takes a language argument such as "python".
+F: CodeSplitter can only split natural-language prose.
+C: CodeSplitter(language="python", chunk_lines=40)
+
+@ Settings | 3
+D: A global singleton of defaults such as the LLM, embedding model and chunk size.
+U: You want every index and query engine to use the same LLM and embedding model by default.
+T: Components passed explicitly override the global Settings.
+F: Settings must be passed to every function call manually.
+C: Settings.llm = OpenAI(model="gpt-5.5")\nSettings.embed_model = OpenAIEmbedding(model="text-embedding-3-small")\nSettings.chunk_size = 512
+B: from llama_index.core import Settings\n____.llm = OpenAI(model="gpt-5.5") ;; Settings ;; Config ;; Defaults ;; Global
+
+@ IngestionPipeline | 3
+D: Chains transformations (splitters, extractors, embeddings) with caching, de-duplication and optional vector-store writes.
+U: Nightly re-ingestion should only process documents that changed.
+T: Attaching a docstore enables de-duplication and upserts of changed documents.
+F: IngestionPipeline re-embeds every document every time even when caching is enabled.
+C: pipeline = IngestionPipeline(transformations=[SentenceSplitter(), TitleExtractor(), OpenAIEmbedding()], vector_store=vs, docstore=docstore)\nnodes = pipeline.run(documents=docs)
+
+@ Metadata extractors | 3
+D: Transformations such as TitleExtractor and KeywordExtractor that use an LLM to add metadata to nodes.
+T: TitleExtractor adds an LLM-generated title to node metadata.
+F: Metadata extractors remove all existing metadata.
+C: from llama_index.core.extractors import TitleExtractor, KeywordExtractor
+
+@ Ingestion cache | 3
+D: Cache of (node, transformation) results so unchanged data is not re-processed.
+T: Re-running a pipeline with the cache skips work already done.
+F: The ingestion cache stores user chat history.
+C: pipeline = IngestionPipeline(transformations=[...], cache=IngestionCache())
+
+@ VectorStoreIndex | 4
+D: The workhorse index that embeds nodes and retrieves the top-k most similar ones.
+U: You need standard semantic search RAG over a folder of documents.
+T: VectorStoreIndex.from_documents splits, embeds and stores documents in one call.
+F: VectorStoreIndex retrieves documents by exact keyword match only.
+C: index = VectorStoreIndex.from_documents(documents)\nquery_engine = index.as_query_engine()
+B: index = ____.from_documents(docs)\nprint(index.as_query_engine().query("Summary?")) ;; VectorStoreIndex ;; SummaryIndex ;; DocumentStore ;; IndexBuilder
+
+@ SummaryIndex | 4
+D: Index that returns all nodes (optionally filtered), suited to summarising whole documents.
+U: You need a summary of an entire document rather than a few matching chunks.
+T: SummaryIndex is typically paired with tree_summarize synthesis.
+F: SummaryIndex returns only the single most similar node.
+C: SummaryIndex.from_documents(docs).as_query_engine(response_mode="tree_summarize")
+
+@ TreeIndex | 4
+D: Index that builds a hierarchy of summaries and traverses it top-down at query time.
+T: TreeIndex organizes nodes into a tree of summaries.
+F: TreeIndex is a graph database.
+C: from llama_index.core import TreeIndex
+
+@ KeywordTableIndex | 4
+D: Index that maps extracted keywords to nodes for keyword-based lookup.
+T: KeywordTableIndex retrieves nodes whose keywords match the query.
+F: KeywordTableIndex requires embeddings for every node.
+C: from llama_index.core import KeywordTableIndex
+
+@ PropertyGraphIndex | 4
+D: Index that builds a knowledge graph of entities and relations (plus vectors) for graph-based retrieval.
+U: Questions require connecting facts about people, companies and products across documents.
+T: PropertyGraphIndex uses kg_extractors such as SimpleLLMPathExtractor.
+F: PropertyGraphIndex can only store plain text without relationships.
+C: PropertyGraphIndex.from_documents(docs, kg_extractors=[SimpleLLMPathExtractor(max_paths_per_chunk=10)])
+
+@ SchemaLLMPathExtractor | 4
+D: Graph extractor that restricts extracted entities and relations to an allowed schema.
+T: A schema produces cleaner, more consistent graphs than free-form extraction.
+F: SchemaLLMPathExtractor ignores the schema you pass.
+C: SchemaLLMPathExtractor(llm=llm, possible_entities=["PERSON", "COMPANY"], possible_relations=["WORKS_AT"])
+
+@ DocumentSummaryIndex | 4
+D: Index storing a summary per document to pick relevant documents before retrieving their chunks.
+T: DocumentSummaryIndex helps route queries across many documents.
+F: DocumentSummaryIndex stores only images.
+C: from llama_index.core import DocumentSummaryIndex
+
+@ StorageContext | 4
+D: Bundle of the docstore, index store, vector store and graph store used by an index.
+T: StorageContext.from_defaults(vector_store=vs) plugs an external vector DB into an index.
+F: StorageContext is only used for chat memory.
+C: storage_context = StorageContext.from_defaults(vector_store=vector_store)\nindex = VectorStoreIndex.from_documents(docs, storage_context=storage_context)
+
+@ persist() | 4
+D: Saves an index's storage (docstore, index store, vectors) to a directory.
+U: Restarting your app should not require re-embedding all documents.
+T: index.storage_context.persist(persist_dir="./storage") writes the index to disk.
+F: persist() uploads the index to LlamaHub.
+C: index.storage_context.persist(persist_dir="./storage")
+
+@ load_index_from_storage | 4
+D: Rebuilds an index from a persisted StorageContext without re-embedding.
+T: load_index_from_storage needs a StorageContext created from the persist directory.
+F: load_index_from_storage re-parses and re-embeds the original files.
+C: storage_context = StorageContext.from_defaults(persist_dir="./storage")\nindex = load_index_from_storage(storage_context)
+
+@ from_vector_store | 4
+D: Creates a VectorStoreIndex on top of an existing populated vector store.
+T: VectorStoreIndex.from_vector_store(vs) reuses vectors already stored in the DB.
+F: from_vector_store deletes the collection first.
+C: index = VectorStoreIndex.from_vector_store(vector_store)
+
+@ Query engine | 5
+D: An end-to-end question-answering interface combining a retriever, node postprocessors and a response synthesizer.
+T: index.as_query_engine() returns a query engine with default components.
+F: A query engine can only return raw nodes and never an answer.
+C: response = index.as_query_engine(similarity_top_k=5).query("What is the refund policy?")
+
+@ Retriever | 5
+D: Component that returns the most relevant nodes (with scores) for a query, without generating an answer.
+T: retriever.retrieve(q) returns a list of NodeWithScore.
+F: Retrievers always call the LLM to write an answer.
+C: retriever = index.as_retriever(similarity_top_k=5)\nnodes = retriever.retrieve("refund policy")
+
+@ similarity_top_k | 5
+D: Parameter controlling how many top-scoring nodes a vector retriever returns.
+T: similarity_top_k=5 returns at most five nodes.
+F: similarity_top_k sets the minimum similarity score.
+C: index.as_retriever(similarity_top_k=5)
+
+@ NodeWithScore | 5
+D: A retrieved node paired with its relevance score.
+T: Each retrieved result exposes .node and .score.
+F: NodeWithScore stores only the score without the text.
+C: for n in nodes:\n    print(n.score, n.node.metadata)
+
+@ SimilarityPostprocessor | 5
+D: Node postprocessor that drops retrieved nodes whose score is below a cutoff.
+U: Low-similarity chunks are polluting answers and you want to drop them.
+T: SimilarityPostprocessor(similarity_cutoff=0.75) removes nodes scoring below 0.75.
+F: SimilarityPostprocessor increases the number of retrieved nodes.
+C: node_postprocessors=[SimilarityPostprocessor(similarity_cutoff=0.75)]
+
+@ SentenceTransformerRerank | 5
+D: Postprocessor that re-ranks retrieved nodes with a cross-encoder and keeps the top_n.
+U: Retrieved chunks are relevant-ish but poorly ordered.
+T: Rerankers are applied after retrieval, typically keeping fewer nodes (top_n).
+F: Rerankers are applied before any retrieval happens.
+C: SentenceTransformerRerank(model="cross-encoder/ms-marco-MiniLM-L-6-v2", top_n=3)
+
+@ LLMRerank | 5
+D: Postprocessor that uses an LLM to select and order the most relevant retrieved nodes.
+T: LLMRerank is more expensive than a cross-encoder reranker.
+F: LLMRerank works without any model.
+C: LLMRerank(top_n=3)
+
+@ MetadataReplacementPostProcessor | 5
+D: Postprocessor that replaces a node's text with a metadata field, such as its sentence window.
+T: It is the second half of sentence-window retrieval.
+F: It removes all metadata from nodes.
+C: MetadataReplacementPostProcessor(target_metadata_key="window")
+
+@ LongContextReorder | 5
+D: Postprocessor that places the most relevant nodes at the start and end of the context to counter "lost in the middle".
+T: LongContextReorder changes node order, not node content.
+F: LongContextReorder deletes the most relevant node.
+C: node_postprocessors=[LongContextReorder()]
+
+@ response_mode compact | 5
+D: The default synthesis mode that packs as many chunks as fit into each LLM call and refines across calls.
+T: compact makes fewer LLM calls than refine for the same chunks.
+F: compact always makes one LLM call per chunk.
+C: index.as_query_engine(response_mode="compact")
+
+@ response_mode refine | 5
+D: Synthesis mode that makes one LLM call per chunk, iteratively refining the answer.
+T: refine with 6 retrieved chunks makes about 6 LLM calls.
+F: refine merges all chunks into one call.
+C: index.as_query_engine(response_mode="refine")
+
+@ response_mode tree_summarize | 5
+D: Synthesis mode that summarizes chunks recursively bottom-up into a final answer.
+U: You need a summary over many chunks of a long report.
+T: tree_summarize is well suited to summarization queries.
+F: tree_summarize returns nodes without calling the LLM.
+C: index.as_query_engine(response_mode="tree_summarize")
+
+@ response_mode no_text | 5
+D: Synthesis mode that returns retrieved nodes without calling the LLM.
+T: no_text is useful to inspect retrieval results only.
+F: no_text generates an answer with no context.
+C: index.as_query_engine(response_mode="no_text")
+
+@ source_nodes | 5
+D: The retrieved nodes attached to a response, used for citations.
+T: response.source_nodes lists the nodes used to build the answer.
+F: source_nodes contains the LLM's raw tokens.
+C: for n in response.source_nodes:\n    print(n.node.metadata["file_name"])
+
+@ RouterQueryEngine | 5
+D: Query engine where an LLM selector chooses the best underlying engine for each query.
+U: Some questions need a summary index and others a vector index.
+T: RouterQueryEngine uses a selector to pick among query engine tools.
+F: RouterQueryEngine runs every engine and concatenates all answers.
+C: RouterQueryEngine(selector=LLMSingleSelector.from_defaults(), query_engine_tools=[summary_tool, vector_tool])
+
+@ SubQuestionQueryEngine | 5
+D: Query engine that decomposes a complex question into sub-questions over different tools, then combines the answers.
+U: "Compare revenue growth of Acme and Globex" needs facts from two different indexes.
+T: Each sub-question is answered by a query engine tool before the final synthesis.
+F: SubQuestionQueryEngine can only answer one sub-question.
+C: SubQuestionQueryEngine.from_defaults(query_engine_tools=[acme_tool, globex_tool])
+
+@ AutoMergingRetriever | 5
+D: Retriever that merges retrieved child nodes into their parent when enough siblings are retrieved.
+T: AutoMergingRetriever works with nodes from a HierarchicalNodeParser.
+F: AutoMergingRetriever splits parents into more children.
+C: AutoMergingRetriever(base_retriever, storage_context)
+
+@ Chat engine | 6
+D: A stateful, multi-turn interface that adds conversation history to retrieval.
+T: chat_engine.reset() clears the conversation memory.
+F: Chat engines forget each message immediately after answering.
+C: chat_engine = index.as_chat_engine(chat_mode="condense_plus_context")\nchat_engine.chat("What about refunds?")
+
+@ condense_question mode | 6
+D: Chat mode that rewrites a follow-up into a standalone question before querying the index.
+T: condense_question uses chat history to rewrite the latest message.
+F: condense_question ignores the chat history.
+C: index.as_chat_engine(chat_mode="condense_question")
+
+@ condense_plus_context mode | 6
+D: Chat mode that condenses the question, retrieves context, then answers with both history and context.
+U: You need a strong default chat mode for a RAG chatbot.
+T: condense_plus_context combines question condensing with retrieved context.
+F: condense_plus_context never retrieves documents.
+C: index.as_chat_engine(chat_mode="condense_plus_context")
+
+@ context chat mode | 6
+D: Chat mode that retrieves with the user message and places the context in the system prompt.
+T: context mode retrieves on every user message.
+F: context mode only retrieves on the first message.
+C: index.as_chat_engine(chat_mode="context")
+
+@ Memory | 6
+D: Component that keeps recent chat messages within a token limit and can maintain long-term memory blocks.
+T: Memory.from_defaults(token_limit=...) bounds how much history is kept.
+F: Memory stores an unlimited history and never truncates.
+C: memory = Memory.from_defaults(session_id="user-1", token_limit=40000)
+
+@ stream_chat | 6
+D: Chat engine method that streams the answer token by token.
+T: stream_chat returns a response whose response_gen yields tokens.
+F: stream_chat waits for the complete answer before returning anything.
+C: resp = chat_engine.stream_chat("Explain step by step")\nfor t in resp.response_gen:\n    print(t, end="")
+
+@ FunctionTool | 7
+D: Tool wrapper that turns a Python function into an agent tool using its signature and docstring.
+T: Plain functions passed to agents are converted into FunctionTools automatically.
+F: FunctionTool requires writing a JSON schema by hand.
+C: FunctionTool.from_defaults(fn=multiply)
+
+@ QueryEngineTool | 7
+D: Tool that exposes a query engine (RAG pipeline) to an agent with a name and description.
+U: An agent should be able to consult your company's policy index as one of its tools.
+T: The tool description tells the agent when to use the query engine.
+F: QueryEngineTool can only wrap web search APIs.
+C: QueryEngineTool.from_defaults(query_engine=index.as_query_engine(), name="company_docs", description="Answers policy questions.")
+
+@ FunctionAgent | 7
+D: Agent that uses the LLM's native function/tool-calling API to choose and call tools.
+U: Your LLM supports native tool calling and you want a simple tool-using agent.
+T: FunctionAgent requires an LLM with function-calling support.
+F: FunctionAgent works by parsing Thought/Action text from any LLM.
+C: agent = FunctionAgent(tools=[multiply, docs_tool], llm=llm, system_prompt="Use tools.")\nresponse = await agent.run(user_msg="What is 12 * 4?")
+B: agent = ____(tools=[multiply], llm=llm, system_prompt="Use tools.")\nawait agent.run(user_msg="2*3?") ;; FunctionAgent ;; QueryEngine ;; ChatEngine ;; ToolNode
+
+@ ReActAgent | 7
+D: Agent that reasons with prompted Thought/Action/Observation steps and works with any LLM.
+U: Your local model does not support native tool calling.
+T: ReActAgent does not require native function calling.
+F: ReActAgent can only use OpenAI models.
+C: agent = ReActAgent(tools=tools, llm=local_llm)
+
+@ CodeActAgent | 7
+D: Agent that writes and executes code as its action.
+T: CodeActAgent's actions are code snippets that must be executed safely.
+F: CodeActAgent cannot run code.
+C: from llama_index.core.agent.workflow import CodeActAgent
+
+@ AgentWorkflow | 7
+D: Multi-agent orchestration where agents hand off control to each other, starting from a root agent.
+U: A researcher agent should hand off to a writer agent once facts are gathered.
+T: can_handoff_to restricts which agents an agent may hand off to.
+F: AgentWorkflow requires all agents to run simultaneously on the same message.
+C: workflow = AgentWorkflow(agents=[research, writer], root_agent="Researcher")\nawait workflow.run(user_msg="Report on GraphRAG")
+
+@ Agent Context | 7
+D: The workflow Context object that carries agent state and memory across runs.
+T: Passing the same ctx to agent.run keeps conversation state.
+F: Context is recreated from scratch on every run even when passed in.
+C: ctx = Context(agent)\nawait agent.run(user_msg="My name is Meera", ctx=ctx)
+
+@ Agent stream events | 7
+D: Events like AgentStream, ToolCall, ToolCallResult and AgentOutput emitted while an agent runs.
+T: Streaming events lets a UI show tool calls as they happen.
+F: Agents in LlamaIndex cannot stream progress.
+C: handler = agent.run(user_msg="...")\nasync for ev in handler.stream_events():\n    print(type(ev).__name__)
+
+@ Workflow | 8
+D: An event-driven class whose @step methods consume and emit typed events from StartEvent to StopEvent.
+U: You need branching, loops and shared state in a custom RAG pipeline.
+T: Agents in LlamaIndex are built on Workflows.
+F: Workflows can only run steps in a fixed linear order.
+C: class RAGWorkflow(Workflow):\n    @step\n    async def retrieve(self, ev: StartEvent) -> RetrievedEvent: ...
+
+@ @step | 8
+D: Decorator marking a workflow method as a step; its type annotations define the events it accepts and returns.
+T: The event type in a step's signature determines which events trigger it.
+F: Steps are triggered in alphabetical order of their names.
+C: @step\nasync def synthesize(self, ctx: Context, ev: RetrievedEvent) -> StopEvent: ...
+B: class W(Workflow):\n    @____\n    async def go(self, ev: StartEvent) -> StopEvent:\n        return StopEvent(result="done") ;; step ;; task ;; node ;; event
+
+@ StartEvent | 8
+D: The event that begins a workflow, carrying the keyword arguments passed to run().
+T: wf.run(query="x") makes ev.query available on the StartEvent.
+F: StartEvent ends the workflow.
+C: async def first(self, ev: StartEvent) -> MyEvent:\n    q = ev.query
+
+@ StopEvent | 8
+D: The event that ends a workflow; its result is returned from run().
+T: Returning StopEvent(result=x) makes run() return x.
+F: Returning StopEvent restarts the workflow.
+C: return StopEvent(result=str(answer))
+
+@ Custom Event | 8
+D: A user-defined subclass of Event carrying typed fields between steps.
+T: Custom events are Pydantic-style classes with typed fields.
+F: Custom events cannot have fields.
+C: class RetrievedEvent(Event):\n    nodes: list
+
+@ ctx.store | 8
+D: Workflow Context storage for sharing state across steps with set and get.
+T: await ctx.store.set("query", q) makes the value available to later steps.
+F: ctx.store values are lost between steps of the same run.
+C: await ctx.store.set("query", ev.query)\nquery = await ctx.store.get("query")
+
+@ ctx.send_event | 8
+D: Context method to emit events manually, e.g. to fan out many parallel events.
+T: send_event can emit several events to trigger parallel processing.
+F: send_event stops the workflow immediately.
+C: for d in docs:\n    ctx.send_event(GradeEvent(doc=d))
+
+@ ctx.collect_events | 8
+D: Context method that waits until a set of events has arrived before continuing (fan-in).
+T: collect_events returns None until all expected events are buffered.
+F: collect_events cancels pending events.
+C: results = ctx.collect_events(ev, [GradeResult] * 3)\nif results is None:\n    return None
+
+@ write_event_to_stream | 8
+D: Context method that publishes progress events to the caller's stream.
+T: The caller can read these events via handler.stream_events().
+F: write_event_to_stream writes events to a file on disk.
+C: ctx.write_event_to_stream(ProgressEvent(msg="retrieved 5 docs"))
+
+@ num_workers | 8
+D: Step option allowing several events to be processed by the same step concurrently.
+T: @step(num_workers=4) can process four events in parallel.
+F: num_workers sets the number of LLM tokens.
+C: @step(num_workers=4)\nasync def grade(self, ev: GradeEvent) -> GradeResult: ...
+
+@ Workflow timeout | 8
+D: Constructor argument that limits how long a workflow run may take.
+T: Workflow(timeout=60) raises an error if the run exceeds 60 seconds.
+F: Workflows ignore the timeout argument.
+C: wf = RAGWorkflow(timeout=60, verbose=True)
+
+@ llama-index-workflows | 8
+D: The standalone package for Workflows, usable outside the rest of LlamaIndex.
+T: Workflows can be imported from the standalone workflows package.
+F: Workflows are only available inside LlamaCloud.
+C: from workflows import Workflow, step, Context\nfrom workflows.events import StartEvent, StopEvent
+
+@ FaithfulnessEvaluator | 9
+D: LLM-based evaluator checking whether a response is supported by the retrieved context.
+U: You want to detect hallucinated answers automatically.
+T: FaithfulnessEvaluator returns passing, score and feedback.
+F: FaithfulnessEvaluator compares the answer to the user's intent only.
+C: result = FaithfulnessEvaluator(llm=judge).evaluate_response(response=response)\nresult.passing
+
+@ RelevancyEvaluator | 9
+D: Evaluator checking whether the response and retrieved context are relevant to the query.
+T: RelevancyEvaluator considers the query, context and response.
+F: RelevancyEvaluator requires a reference answer.
+C: RelevancyEvaluator(llm=judge).evaluate_response(query=q, response=response)
+
+@ CorrectnessEvaluator | 9
+D: Evaluator that scores a response against a reference answer on a 1–5 scale.
+T: CorrectnessEvaluator needs a reference answer.
+F: CorrectnessEvaluator works without any reference.
+C: CorrectnessEvaluator(llm=judge).evaluate(query=q, response=ans, reference=ref)
+
+@ RetrieverEvaluator | 9
+D: Evaluator computing retrieval metrics like hit rate and MRR over question-context pairs.
+U: You must compare two chunking strategies by retrieval quality.
+T: RetrieverEvaluator.from_metric_names(["hit_rate", "mrr"], retriever=r) builds the evaluator.
+F: RetrieverEvaluator measures answer fluency.
+C: evaluator = RetrieverEvaluator.from_metric_names(["hit_rate", "mrr"], retriever=retriever)
+
+@ generate_question_context_pairs | 9
+D: Utility that uses an LLM to create synthetic questions for each node, producing a retrieval eval dataset.
+T: The generated dataset maps questions to the nodes that answer them.
+F: generate_question_context_pairs requires human-written questions.
+C: qa = generate_question_context_pairs(nodes, llm=llm, num_questions_per_chunk=2)
+
+@ Hit rate | 9
+D: Fraction of queries whose relevant chunk appears in the top-k results.
+T: Hit rate ignores the exact position as long as the relevant chunk is in the top k.
+F: Hit rate rewards higher ranks more than lower ranks.
+C: hit_rate = sum(rel in top_k for rel, top_k in results) / len(results)
+
+@ MRR | 9
+D: Mean reciprocal rank: the average of 1/rank of the first relevant result per query.
+T: A relevant result at rank 2 contributes 0.5 to the MRR average.
+F: MRR is the median rank of relevant results.
+C: mrr = sum(1 / rank for rank in first_relevant_ranks) / len(first_relevant_ranks)
+
+@ Instrumentation module | 9
+D: LlamaIndex's built-in system emitting events and spans that observability tools consume.
+T: OpenInference's LlamaIndexInstrumentor hooks into LlamaIndex instrumentation.
+F: LlamaIndex cannot be traced by external tools.
+C: LlamaIndexInstrumentor().instrument()
+
+% LlamaIndex index type | 4 | VectorStoreIndex; SummaryIndex; TreeIndex; KeywordTableIndex; PropertyGraphIndex; DocumentSummaryIndex | LlamaIndex node parser
+% LlamaIndex node parser | 3 | SentenceSplitter; TokenTextSplitter; SemanticSplitterNodeParser; SentenceWindowNodeParser; HierarchicalNodeParser; MarkdownNodeParser; CodeSplitter | LlamaIndex index type
+% LlamaIndex node postprocessor | 5 | SimilarityPostprocessor; SentenceTransformerRerank; LLMRerank; KeywordNodePostprocessor; MetadataReplacementPostProcessor; LongContextReorder | LlamaIndex response mode
+% LlamaIndex response mode | 5 | compact; refine; tree_summarize; simple_summarize; accumulate; no_text | LlamaIndex chat mode
+% LlamaIndex chat mode | 6 | condense_question; context; condense_plus_context; simple; react | LlamaIndex response mode
+% LlamaIndex agent class | 7 | FunctionAgent; ReActAgent; CodeActAgent; AgentWorkflow | LlamaIndex evaluator
+% LlamaIndex evaluator | 9 | FaithfulnessEvaluator; RelevancyEvaluator; CorrectnessEvaluator; SemanticSimilarityEvaluator; GuidelineEvaluator; RetrieverEvaluator | LlamaIndex agent class
+% Workflow Context API | 8 | ctx.store.set; ctx.store.get; ctx.send_event; ctx.collect_events; ctx.write_event_to_stream; ctx.wait_for_event
+% LlamaIndex graph extractor | 4 | SimpleLLMPathExtractor; SchemaLLMPathExtractor; ImplicitPathExtractor
+% StorageContext component | 4 | docstore; index store; vector store; graph store
+% advanced LlamaIndex query engine | 5 | RouterQueryEngine; SubQuestionQueryEngine; RetrieverQueryEngine; CitationQueryEngine
+
+> What happens inside VectorStoreIndex.from_documents(...).as_query_engine().query(q) | 1 | documents are split into nodes ; nodes are embedded and stored ; the query is embedded and top-k nodes are retrieved ; the response synthesizer calls the LLM with the nodes
+> Lifecycle of a LlamaIndex workflow run | 8 | run(**kwargs) creates a StartEvent ; steps whose input type matches are triggered ; steps return new events that trigger further steps ; a step returns StopEvent and run() returns its result
+> Query engine pipeline | 5 | retriever fetches candidate nodes ; node postprocessors filter or rerank ; response synthesizer builds the answer ; response includes source_nodes

@@ -1,0 +1,365 @@
+# LangGraph. Lessons: 1 why, 2 state/nodes/edges, 3 reducers, 4 conditional/loops, 5 ReAct from scratch, 6 persistence, 7 HITL, 8 multi-agent/Send, 9 streaming/functional/deploy
+@ LangGraph | 1
+D: A low-level orchestration framework for long-running, stateful agents modelled as graphs of nodes and edges.
+T: LangGraph supports cycles, which plain DAG pipelines cannot express.
+F: LangGraph can only build linear pipelines without loops.
+C: from langgraph.graph import StateGraph, START, END
+
+@ Pregel execution model | 1
+D: Execution inspired by Google's Pregel where nodes run in super-steps and communicate through state channels.
+T: LangGraph's runtime is inspired by Google's Pregel system.
+F: LangGraph's runtime is based on MapReduce over Hadoop.
+C: # each super-step runs all scheduled nodes, then applies their updates
+
+@ Super-step | 1
+D: One tick of graph execution in which all currently scheduled nodes run, possibly in parallel.
+T: Nodes that run in the same super-step can execute in parallel.
+F: A super-step always runs exactly one node.
+C: builder.add_edge(START, "a")\nbuilder.add_edge(START, "b")   # a and b run in the same super-step
+
+@ Durable execution | 1
+D: The ability of a run to persist progress and resume after failures or long pauses.
+U: An approval step may take hours, and the server could restart in the meantime.
+T: Durable execution relies on checkpoints saved during the run.
+F: Durable execution means the graph never calls external APIs.
+C: graph = builder.compile(checkpointer=PostgresSaver(conn))
+
+@ StateGraph | 2
+D: The builder class used to define a graph over a typed shared state.
+T: A StateGraph must be compiled before it can be invoked.
+F: StateGraph objects can be invoked directly without compile().
+C: builder = StateGraph(State)\nbuilder.add_node("think", think)\ngraph = builder.compile()
+B: builder = ____(State)\nbuilder.add_node("a", node_a)\ngraph = builder.compile() ;; StateGraph ;; Graph ;; MessageGraph ;; Workflow
+
+@ State | 2
+D: The shared data structure (TypedDict, Pydantic model or dataclass) that every node reads and updates.
+T: Nodes receive the current state as their input.
+F: Each node keeps its own private copy of state that other nodes never see.
+C: class State(TypedDict):\n    question: str\n    answer: str
+
+@ Node | 2
+D: A function or runnable that receives the state and returns a partial update.
+T: A node only needs to return the keys it wants to change.
+F: A node must return the entire state every time.
+C: def think(state: State) -> dict:\n    return {"answer": "..."}
+
+@ Edge | 2
+D: A fixed transition that makes one node run after another.
+T: add_edge("a", "b") means b runs after a finishes.
+F: add_edge runs both nodes at the same time regardless of order.
+C: builder.add_edge("think", "polish")
+B: builder.____("think", "polish")   # polish always runs after think ;; add_edge ;; add_node ;; connect ;; link
+
+@ START and END | 2
+D: Virtual nodes marking where execution enters the graph and where it terminates.
+T: add_edge(START, "x") makes x the entry node.
+F: END is a real node that must be implemented as a function.
+C: builder.add_edge(START, "think")\nbuilder.add_edge("polish", END)
+
+@ compile() | 2
+D: Builder method that validates the graph and returns a runnable compiled graph, optionally with a checkpointer.
+T: The checkpointer is attached when calling compile(checkpointer=...).
+F: compile() runs the graph once to warm up the model.
+C: graph = builder.compile(checkpointer=InMemorySaver())
+B: graph = builder.____(checkpointer=InMemorySaver()) ;; compile ;; build ;; finalize ;; freeze
+
+@ add_sequence | 2
+D: Shorthand that adds several nodes connected one after another.
+T: add_sequence([a, b, c]) chains a → b → c.
+F: add_sequence runs the listed nodes in parallel.
+C: builder.add_sequence([retrieve, grade, generate])
+
+@ Input and output schemas | 2
+D: Separate schemas that control what callers must provide and what they receive, while nodes can use internal keys.
+T: output_schema hides internal state keys from the caller.
+F: A graph can only have one schema used for input, output and internal state.
+C: StateGraph(OverallState, input_schema=InputState, output_schema=OutputState)
+
+@ Runtime context | 2
+D: Static per-run configuration such as user id or DB handle passed via context=, not stored in state.
+U: Each run needs the current user id, but it should not be part of the checkpointed state.
+T: context_schema declares the type of the runtime context.
+F: Runtime context is merged into the state and checkpointed automatically.
+C: graph.invoke({"question": "hi"}, context={"user_id": "u1"})
+
+@ Reducer | 3
+D: A function attached to a state key with Annotated that defines how new updates combine with the old value.
+U: Several nodes append findings to the same list without overwriting each other.
+T: Without a reducer, a new value for a key overwrites the old value.
+F: By default LangGraph appends every update to a list.
+C: class State(TypedDict):\n    steps: Annotated[list[str], operator.add]
+
+@ operator.add reducer | 3
+D: Using Python's addition operator as a reducer so list updates are concatenated.
+T: With Annotated[list, operator.add], returning ["b"] after ["a"] yields ["a", "b"].
+F: operator.add as a reducer sums the lengths of the lists.
+C: steps: Annotated[list[str], operator.add]
+B: steps: Annotated[list[str], ____]   # concatenate updates ;; operator.add ;; operator.mul ;; max ;; list
+
+@ add_messages | 3
+D: The message reducer that appends new messages, updates messages with the same id and supports RemoveMessage.
+T: add_messages replaces an existing message when a new message has the same id.
+F: add_messages always overwrites the whole message list.
+C: messages: Annotated[list[AnyMessage], add_messages]
+
+@ MessagesState | 3
+D: A prebuilt state with a messages key that uses the add_messages reducer.
+T: You can subclass MessagesState to add your own keys.
+F: MessagesState stores messages without any reducer.
+C: class AgentState(MessagesState):\n    documents: list[str]
+
+@ RemoveMessage | 3
+D: A special message that tells add_messages to delete the message with a given id.
+U: You want to delete old messages from state to keep the context short.
+T: Returning RemoveMessage(id=m.id) under messages removes that message.
+F: RemoveMessage deletes the whole thread.
+C: return {"messages": [RemoveMessage(id=m.id) for m in state["messages"][:-4]]}
+
+@ Overwrite | 3
+D: A wrapper from langgraph.types that bypasses a reducer and replaces a key's value entirely.
+T: Overwrite(value) replaces a reduced list instead of appending to it.
+F: Overwrite appends values twice.
+C: return {"steps": Overwrite(["reset"])}
+
+@ InvalidUpdateError | 3
+D: The error raised when parallel nodes write the same state key without a reducer.
+T: Two nodes in the same super-step writing a key with no reducer cause InvalidUpdateError.
+F: LangGraph silently keeps a random value when parallel nodes write the same key.
+C: # START -> n1 and START -> n2, both return {"x": ...} with no reducer -> InvalidUpdateError
+
+@ Conditional edge | 4
+D: An edge whose destination is chosen at runtime by a routing function that reads the state.
+U: After classification, the graph must go to web search or answer directly.
+T: The routing function returns the name of the next node or END.
+F: Conditional edges are evaluated only once when the graph is compiled.
+C: builder.add_conditional_edges("classify", route, {"search": "web_search", "answer": "respond"})
+B: builder.____("agent", should_continue)   # choose the next node at runtime ;; add_conditional_edges ;; add_edge ;; add_router ;; add_branch
+
+@ Path map | 4
+D: The optional dict in add_conditional_edges that maps a routing function's return values to node names.
+T: A path map lets a router return labels that are translated into node names.
+F: A path map is required for every conditional edge.
+C: builder.add_conditional_edges("grade", decide, {"good": "generate", "bad": "rewrite"})
+
+@ recursion_limit | 4
+D: The maximum number of super-steps allowed in a run before GraphRecursionError is raised.
+U: A buggy agent loop never reaches its exit condition.
+T: recursion_limit is passed in the config, e.g. {"recursion_limit": 50}.
+F: recursion_limit limits the number of tokens per LLM call.
+C: graph.invoke(inputs, {"recursion_limit": 50})
+
+@ GraphRecursionError | 4
+D: Exception raised when a run exceeds its recursion limit, protecting against infinite loops.
+T: GraphRecursionError signals that the step budget was exhausted.
+F: GraphRecursionError means a Python function called itself recursively.
+C: try:\n    graph.invoke(x, {"recursion_limit": 10})\nexcept GraphRecursionError: ...
+
+@ Command | 4
+D: A return type that combines a state update with a goto that routes to the next node.
+U: A triage node must both record the department and jump to that department's node.
+T: Command(update={...}, goto="billing") updates state and routes in one return.
+F: Command can only be used inside tools, never in nodes.
+C: return Command(update={"department": dept}, goto=dept)
+
+@ Command.PARENT | 8
+D: A Command graph target that navigates to a node in the parent graph, used for multi-agent handoffs.
+T: Command(goto="other_agent", graph=Command.PARENT) hands off from a subgraph to its parent's node.
+F: Command.PARENT restarts the current graph from START.
+C: return Command(goto="billing_agent", graph=Command.PARENT, update={...})
+
+@ ToolNode | 5
+D: Prebuilt node that executes the tool calls in the last AIMessage and returns ToolMessages.
+T: ToolNode can run several requested tool calls in parallel.
+F: ToolNode calls the LLM to decide which tool to use.
+C: from langgraph.prebuilt import ToolNode\nbuilder.add_node("tools", ToolNode(tools))
+
+@ tools_condition | 5
+D: Prebuilt routing function that goes to the tools node if the last message has tool calls, otherwise to END.
+T: tools_condition routes to END when the model replies without tool calls.
+F: tools_condition always routes to the tools node.
+C: builder.add_conditional_edges("agent", tools_condition)
+
+@ ReAct loop in LangGraph | 5
+D: An agent node and a tools node connected in a cycle until the model stops requesting tools.
+T: After the tools node runs, an edge sends control back to the agent node.
+F: In a ReAct graph the tools node runs before the model has been called.
+C: builder.add_edge(START, "agent")\nbuilder.add_conditional_edges("agent", tools_condition)\nbuilder.add_edge("tools", "agent")
+
+@ create_react_agent | 5
+D: The older prebuilt LangGraph agent constructor, now superseded by LangChain's create_agent.
+T: LangChain 1.0 recommends create_agent instead of langgraph.prebuilt.create_react_agent.
+F: create_react_agent was introduced in LangChain 1.0 as the new standard.
+C: from langchain.agents import create_agent   # preferred over create_react_agent
+
+@ InMemorySaver | 6
+D: A checkpointer that stores checkpoints in memory, intended for tests and notebooks.
+T: InMemorySaver loses all threads when the process restarts.
+F: InMemorySaver is recommended for multi-server production deployments.
+C: from langgraph.checkpoint.memory import InMemorySaver\ngraph = builder.compile(checkpointer=InMemorySaver())
+
+@ PostgresSaver | 6
+D: A production checkpointer that persists graph state in PostgreSQL.
+U: Several API servers must share durable conversation state.
+T: PostgresSaver lives in the langgraph-checkpoint-postgres package.
+F: PostgresSaver stores checkpoints only in browser local storage.
+C: from langgraph.checkpoint.postgres import PostgresSaver
+
+@ Checkpoint | 6
+D: A snapshot of graph state saved after each super-step for a thread.
+T: Checkpoints make it possible to resume, inspect and replay runs.
+F: A checkpoint is saved only when the graph finishes successfully.
+C: snap = graph.get_state(config)\nsnap.values, snap.next
+
+@ get_state | 6
+D: Compiled-graph method returning the latest state snapshot for a thread, including the next nodes to run.
+T: get_state(config).next shows which nodes are scheduled next.
+F: get_state deletes the thread's history.
+C: graph.get_state({"configurable": {"thread_id": "t1"}}).values
+
+@ get_state_history | 6
+D: Method that iterates over all checkpoints of a thread, newest first.
+U: You want to replay a run from an earlier step to debug a wrong decision.
+T: Each history item has a checkpoint_id you can resume or fork from.
+F: get_state_history only returns the very first checkpoint.
+C: for s in graph.get_state_history(config):\n    print(s.config["configurable"]["checkpoint_id"])
+
+@ update_state | 6
+D: Method that edits a thread's state as if a node had written the update.
+U: A human wants to correct the agent's draft before it continues.
+T: update_state applies reducers just like a node update would.
+F: update_state can only be used before the first run.
+C: graph.update_state(config, {"draft": "corrected text"})
+
+@ Durability modes | 6
+D: The durability option controlling when checkpoints are written: sync, async or exit.
+T: durability="exit" writes checkpoints only when the run exits, trading safety for speed.
+F: durability="sync" skips checkpointing entirely.
+C: graph.invoke(inputs, config, durability="async")
+
+@ Store | 6
+D: Cross-thread long-term memory organized by namespaces and keys, with optional semantic search.
+U: A user's preferred language must be remembered in every future conversation.
+T: Checkpointers remember within a thread, while stores remember across threads.
+F: A store is the same thing as a checkpointer.
+C: store.put(("users", user_id, "prefs"), "lang", {"value": "Hindi"})\nstore.search(("users", user_id, "prefs"))
+
+@ interrupt() | 7
+D: Function that pauses the graph inside a node and surfaces a payload to the caller for human input.
+U: The agent must ask a human to approve a payment before executing it.
+T: interrupt() requires a checkpointer and a thread_id.
+F: interrupt() terminates the thread permanently.
+C: decision = interrupt({"question": "Approve sending?", "draft": state["draft"]})
+B: approved = ____({"question": "Approve?"})   # pause for a human ;; interrupt ;; input ;; pause ;; breakpoint
+
+@ Command(resume=...) | 7
+D: The input used to continue an interrupted thread, providing the value returned by interrupt().
+T: graph.invoke(Command(resume={"approved": True}), config) continues the paused run.
+F: Resuming requires starting a brand new thread.
+C: graph.invoke(Command(resume={"approved": True}), config)
+
+@ Node restart on resume | 7
+D: The semantics that an interrupted node re-runs from its beginning when the thread is resumed.
+T: Side effects placed before interrupt() may run twice after resuming.
+F: Execution continues on the exact line after interrupt() without re-running the node.
+C: def node(state):\n    answer = interrupt("?")   # node restarts here on resume\n    do_side_effect(answer)
+
+@ __interrupt__ | 7
+D: The key in the invoke result that contains the payloads of pending interrupts.
+T: result["__interrupt__"] lets the app show the human what needs approval.
+F: __interrupt__ contains the final answer of the graph.
+C: result = graph.invoke(inputs, config)\nresult["__interrupt__"]
+
+@ Static breakpoints | 7
+D: interrupt_before / interrupt_after options that pause before or after named nodes.
+T: compile(interrupt_before=["tools"]) pauses before the tools node runs.
+F: Static breakpoints work without a checkpointer.
+C: graph = builder.compile(checkpointer=saver, interrupt_before=["tools"])
+
+@ Subgraph | 8
+D: A compiled graph used as a node inside another graph.
+U: A research team workflow should be reusable inside a larger company workflow.
+T: A compiled graph can be passed directly to add_node.
+F: Subgraphs must always use exactly the same schema as the parent.
+C: research_graph = research_builder.compile()\nparent.add_node("research", research_graph)
+
+@ Supervisor architecture | 8
+D: A multi-agent design where a central LLM routes work to specialist agents and decides when the task is done.
+T: In a supervisor setup, specialists report back to the supervisor.
+F: In a supervisor setup, every agent talks to every other agent freely.
+C: from langgraph_supervisor import create_supervisor
+
+@ Swarm architecture | 8
+D: A multi-agent design where agents hand off control directly to each other without a central router.
+T: In a swarm, the active agent can transfer the conversation to another agent.
+F: A swarm requires a supervisor to approve every handoff.
+C: from langgraph_swarm import create_swarm
+
+@ Send | 8
+D: A primitive returned from a conditional edge to launch a node with a custom payload, enabling dynamic map-reduce.
+U: You must summarize an unknown number of documents in parallel and combine the results.
+T: Returning a list of Send objects fans out one parallel task per item.
+F: Send can only target END.
+C: def fan_out(state):\n    return [Send("summarize", {"topic": t}) for t in state["topics"]]
+
+@ Stream mode values | 9
+D: Stream mode that emits the full state after each super-step.
+T: stream_mode="values" yields the complete state each step.
+F: values mode only emits LLM tokens.
+C: for s in graph.stream(inputs, stream_mode="values"):\n    print(s)
+
+@ Stream mode custom | 9
+D: Stream mode that emits arbitrary data written by nodes through get_stream_writer().
+U: You want to show "fetched 10 docs" progress messages in the UI.
+T: get_stream_writer() returns a function that emits custom stream events.
+F: custom mode is used to change the graph's schema while streaming.
+C: writer = get_stream_writer()\nwriter({"progress": "fetched 10 docs"})
+
+@ subgraphs=True streaming | 9
+D: Option that includes events from nested subgraphs in the stream with their namespace.
+T: stream(..., subgraphs=True) shows updates coming from inside subgraphs.
+F: Subgraph events are always included even without subgraphs=True.
+C: for ns, chunk in graph.stream(inputs, stream_mode="updates", subgraphs=True): ...
+
+@ Functional API | 9
+D: The @entrypoint and @task decorators that add persistence and durability to ordinary Python functions.
+U: You want durable execution without explicitly declaring nodes and edges.
+T: Results of @task calls are saved so they are not recomputed on resume.
+F: The functional API cannot use interrupts.
+C: @task\ndef fetch(url): ...\n@entrypoint(checkpointer=InMemorySaver())\ndef workflow(urls):\n    return [f.result() for f in [fetch(u) for u in urls]]
+
+@ RetryPolicy | 9
+D: Per-node configuration that retries a node on failure with backoff.
+U: A node calling a flaky API should retry up to three times.
+T: add_node("call_api", fn, retry_policy=RetryPolicy(max_attempts=3)) retries the node.
+F: RetryPolicy retries the entire graph from START.
+C: builder.add_node("call_api", call_api, retry_policy=RetryPolicy(max_attempts=3))
+
+@ LangGraph Studio | 9
+D: A visual debugger for graphs started locally with langgraph dev.
+T: langgraph dev launches a local Agent Server that Studio can connect to.
+F: Studio is a vector database UI.
+C: langgraph dev
+
+@ langgraph.json | 9
+D: Configuration file declaring graphs, dependencies and environment for the LangGraph CLI and deployment.
+T: langgraph.json tells the CLI where your compiled graphs live.
+F: langgraph.json stores conversation checkpoints.
+C: {"graphs": {"agent": "./agent.py:graph"}, "dependencies": ["."]}
+
+@ LangSmith Deployment | 9
+D: The hosted platform (formerly LangGraph Platform) that runs graphs as APIs with threads, runs, cron jobs and persistence.
+T: LangSmith Deployment was previously called LangGraph Platform.
+F: LangSmith Deployment is a local-only tool with no API.
+C: # deploy graphs declared in langgraph.json
+
+% LangGraph stream mode | 9 | values; updates; messages; custom; checkpoints; debug | LangGraph durability mode
+% LangGraph durability mode | 6 | sync; async; exit | LangGraph stream mode
+% LangGraph checkpointer | 6 | InMemorySaver; SqliteSaver; PostgresSaver; RedisSaver
+% LangGraph multi-agent architecture | 8 | supervisor; hierarchical teams; swarm (handoffs); custom workflow; network
+% langgraph.types export | 4 | Command; Send; interrupt; RetryPolicy; Overwrite; StreamWriter
+% StateGraph builder method | 2 | add_node; add_edge; add_conditional_edges; add_sequence; compile
+% compiled graph method | 6 | invoke; stream; get_state; get_state_history; update_state; astream
+
+> Execution of a ReAct graph for one tool call | 5 | agent node calls the model ; model returns an AIMessage with tool_calls ; tools_condition routes to the tools node ; ToolNode runs the tool and appends a ToolMessage ; agent node calls the model again ; model answers and the graph ends
+> Human-in-the-loop with interrupt | 7 | compile with a checkpointer ; invoke with a thread_id ; node calls interrupt and the run pauses ; app shows the __interrupt__ payload to a human ; invoke Command(resume=...) on the same thread
+> Building and running a StateGraph | 2 | define the State schema ; add nodes ; add edges including START and END ; compile the builder ; invoke the compiled graph

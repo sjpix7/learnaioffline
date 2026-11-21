@@ -1,0 +1,19 @@
+# Android project (open this folder in Android Studio). The repo-root .gitignore covers the rest.
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/app/release/
+/app/debug/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Release signing: keep the key and its passwords out of git (keystore.properties.example is the template).
+keystore.properties
+*.jks
+*.keystore

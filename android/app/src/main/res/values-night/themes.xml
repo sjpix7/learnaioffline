@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App theme. Compose draws all UI; this only sets the window colour behind it. -->
+    <style name="Theme.LearnAIoffline" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+
+    <!-- Launch theme (AndroidX core-splashscreen): mark on the window colour, then the app theme. -->
+    <style name="Theme.LearnAIoffline.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_mark</item>
+        <item name="postSplashScreenTheme">@style/Theme.LearnAIoffline</item>
+    </style>
+</resources>

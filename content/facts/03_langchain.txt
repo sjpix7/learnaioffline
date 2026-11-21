@@ -1,0 +1,437 @@
+# LangChain. Lessons: 1 overview/v1, 2 models/messages, 3 prompts, 4 LCEL, 5 structured output, 6 tools, 7 agents/middleware, 8 retrieval, 9 memory/streaming/LangSmith
+@ create_agent | 7
+D: The LangChain 1.0 function for building a tool-calling agent loop, configurable with middleware.
+U: You need a production agent with tools, a system prompt and pluggable behaviour hooks.
+T: create_agent replaces langgraph.prebuilt.create_react_agent as the recommended agent API.
+F: create_agent is imported from langchain_community.agents.
+C: from langchain.agents import create_agent\nagent = create_agent(model="openai:gpt-5.5", tools=[search], system_prompt="Be helpful.")
+B: from langchain.agents import ____\nagent = ____(model="openai:gpt-5.5", tools=[search]) ;; create_agent ;; AgentExecutor ;; initialize_agent ;; create_react_agent
+
+@ Middleware | 7
+D: Pluggable hooks that intercept the agent loop before/after model calls, around tool calls, and at start/end.
+U: You want to redact emails, summarize long histories and require human approval without rewriting the agent loop.
+T: Middleware is passed to create_agent through the middleware= list.
+F: Middleware can only run after the agent has finished.
+C: agent = create_agent(model, tools, middleware=[SummarizationMiddleware(...), HumanInTheLoopMiddleware(...)])
+
+@ before_model hook | 7
+D: Middleware hook that runs before each model call, e.g. to trim or inspect messages.
+T: before_model runs before every model call in the agent loop, not just once.
+F: before_model runs only once when the agent finishes.
+C: @before_model\ndef trim(state, runtime): ...
+
+@ wrap_model_call hook | 7
+D: Middleware hook that wraps each model call, able to modify the request, retry, or swap the model.
+U: Long conversations should be routed to a larger model automatically.
+T: A wrap_model_call middleware receives the request and a handler to call the model.
+F: wrap_model_call can only read the response and cannot change the request.
+C: @wrap_model_call\ndef pick(request, handler):\n    return handler(request.override(model=big_model))
+
+@ wrap_tool_call hook | 7
+D: Middleware hook that wraps each tool execution, useful for retries, logging or blocking calls.
+T: wrap_tool_call runs around tool executions rather than model calls.
+F: wrap_tool_call runs before the agent starts and never again.
+C: @wrap_tool_call\ndef log_tools(request, handler):\n    return handler(request)
+
+@ SummarizationMiddleware | 7
+D: Built-in middleware that summarizes older messages when a token or message threshold is reached.
+U: Chat histories grow beyond the context window during long support sessions.
+T: SummarizationMiddleware can trigger on token count and keep the most recent messages.
+F: SummarizationMiddleware deletes the whole conversation when triggered.
+C: SummarizationMiddleware(model="openai:gpt-5.4-mini", trigger=("tokens", 4000), keep=("messages", 20))
+
+@ HumanInTheLoopMiddleware | 7
+D: Built-in middleware that pauses before selected tool calls so a human can approve, edit or reject them.
+U: The agent must not send emails without a person approving first.
+T: HumanInTheLoopMiddleware requires a checkpointer so the run can pause and resume.
+F: HumanInTheLoopMiddleware works without any persistence layer.
+C: HumanInTheLoopMiddleware(interrupt_on={"send_email": True})
+
+@ PIIMiddleware | 7
+D: Built-in middleware that detects and redacts, masks or blocks personal data such as emails.
+T: PIIMiddleware can redact emails from user input before the model sees them.
+F: PIIMiddleware encrypts the entire conversation with a user key.
+C: PIIMiddleware("email", strategy="redact", apply_to_input=True)
+
+@ ModelCallLimitMiddleware | 7
+D: Built-in middleware that caps the number of model calls in a run or thread.
+U: You must stop runaway agents from looping and burning tokens.
+T: ModelCallLimitMiddleware(run_limit=10) stops a run after ten model calls.
+F: ModelCallLimitMiddleware limits the number of tools you can register.
+C: ModelCallLimitMiddleware(run_limit=10)
+
+@ dynamic_prompt | 7
+D: Decorator for middleware that computes the system prompt at runtime from state or context.
+T: A @dynamic_prompt function returns the system prompt string to use for the call.
+F: dynamic_prompt changes the tools list instead of the prompt.
+C: @dynamic_prompt\ndef by_role(request):\n    return f"You assist a {request.runtime.context['role']}."
+
+@ response_format | 5
+D: create_agent argument that makes the agent return a validated structured object in structured_response.
+T: create_agent(..., response_format=Ticket) puts the result in result["structured_response"].
+F: response_format changes the HTTP content type of the agent server.
+C: agent = create_agent(model, tools, response_format=Ticket)\nresult["structured_response"]
+
+@ langchain-core | 1
+D: Package containing LangChain's base abstractions: messages, prompts, runnables, tools, parsers and interfaces.
+T: Provider integrations depend on langchain-core abstractions.
+F: langchain-core contains every third-party integration.
+C: from langchain_core.prompts import ChatPromptTemplate
+
+@ langchain-classic | 1
+D: Package holding legacy v0.x chains and agents such as LLMChain and RetrievalQA after the v1 cleanup.
+U: An old codebase imports RetrievalQA and you upgrade to LangChain 1.x.
+T: In LangChain v1, legacy chains like RetrievalQA moved to langchain-classic.
+F: langchain-classic is the new agent runtime replacing LangGraph.
+C: pip install langchain-classic
+
+@ Provider integration packages | 1
+D: Separate packages such as langchain-openai and langchain-anthropic that implement models for each provider.
+T: ChatAnthropic lives in the langchain-anthropic package.
+F: All providers are bundled inside the core langchain package with no extra installs.
+C: pip install langchain-openai langchain-anthropic
+
+@ LangChain 1.0 | 1
+D: The October 2025 major release focused on agents with create_agent, middleware and standard content blocks.
+T: LangChain and LangGraph both reached 1.0 in October 2025.
+F: LangChain 1.0 removed support for tools.
+C: uv pip install --upgrade langchain
+
+@ init_chat_model | 2
+D: Helper that creates a chat model for any provider from a "provider:model" string.
+U: You want to switch between OpenAI and Anthropic by changing one config string.
+T: init_chat_model("anthropic:claude-sonnet-5") returns an Anthropic chat model.
+F: init_chat_model only works with OpenAI models.
+C: from langchain.chat_models import init_chat_model\nmodel = init_chat_model("openai:gpt-5.5", temperature=0)
+B: from langchain.chat_models import ____\nmodel = ____("openai:gpt-5.5") ;; init_chat_model ;; ChatModel ;; load_llm ;; get_model
+
+@ AIMessage | 2
+D: The message type returned by chat models, carrying content, tool_calls and usage metadata.
+T: AIMessage.usage_metadata reports input and output token counts when the provider returns them.
+F: Chat models return plain strings, not message objects.
+C: reply = model.invoke("hi")\nreply.content, reply.tool_calls, reply.usage_metadata
+
+@ content_blocks | 2
+D: Standardized, provider-agnostic view of message content such as text, reasoning, images and tool calls.
+T: content_blocks normalizes content across providers in LangChain v1.
+F: content_blocks only work with OpenAI responses.
+C: for block in reply.content_blocks:\n    print(block["type"])
+
+@ ToolMessage | 2
+D: Message type that carries a tool's result back to the model, linked by tool_call_id.
+T: A ToolMessage must reference the id of the tool call it answers.
+F: ToolMessage is used to send the system prompt.
+C: ToolMessage(content="22 degrees", tool_call_id=ai.tool_calls[0]["id"])
+
+@ SystemMessage | 2
+D: Message type holding instructions that set the model's behaviour for the conversation.
+T: A SystemMessage is typically placed first in the message list.
+F: SystemMessage contains the model's own reply.
+C: [SystemMessage("You are concise."), HumanMessage("What is RAG?")]
+
+@ stream() | 2
+D: Runnable method that yields output chunks as they are generated.
+U: Tokens should appear progressively in a chat UI.
+T: model.stream(...) yields AIMessageChunk objects.
+F: stream() returns only after the full response is complete.
+C: for chunk in model.stream("Write a haiku"):\n    print(chunk.content, end="")
+
+@ batch() | 2
+D: Runnable method that runs many inputs, in parallel where possible, returning outputs in input order.
+T: runnable.batch([a, b]) returns a list of outputs in the same order as the inputs.
+F: batch() processes inputs strictly one at a time and returns them shuffled.
+C: model.batch(["Q1", "Q2", "Q3"])
+
+@ with_fallbacks | 2
+D: Runnable method that tries alternative runnables when the primary one raises an error.
+U: If OpenAI times out, the chain should automatically try Anthropic.
+T: with_fallbacks only uses the fallback when the primary runnable raises an exception.
+F: with_fallbacks calls every fallback in parallel and merges the answers.
+C: robust = model.with_fallbacks([init_chat_model("anthropic:claude-sonnet-5")])
+
+@ with_retry | 2
+D: Runnable method that automatically retries a failing call a configured number of times.
+T: with_retry(stop_after_attempt=3) retries up to three attempts.
+F: with_retry caches the first successful output forever.
+C: model.with_retry(stop_after_attempt=3)
+
+@ InMemoryRateLimiter | 2
+D: A rate limiter you attach to chat models to cap requests per second.
+T: A rate_limiter can be passed when constructing a chat model.
+F: InMemoryRateLimiter limits tokens per prompt instead of request rate.
+C: limiter = InMemoryRateLimiter(requests_per_second=2)\nmodel = init_chat_model("openai:gpt-5.5", rate_limiter=limiter)
+
+@ PromptTemplate | 3
+D: String template with {variables} that formats into a single prompt string.
+T: PromptTemplate.from_template("Hi {name}").input_variables is ['name'].
+F: PromptTemplate produces a list of chat messages.
+C: pt = PromptTemplate.from_template("Summarize in {n} words: {text}")\npt.format(n=10, text="...")
+
+@ ChatPromptTemplate | 3
+D: Template that formats variables into a list of role-tagged chat messages.
+U: You need a system instruction, chat history and the user question in one reusable prompt.
+T: ChatPromptTemplate.from_messages accepts (role, template) tuples.
+F: ChatPromptTemplate can only contain a single human message.
+C: prompt = ChatPromptTemplate.from_messages([("system", "Expert in {domain}"), ("human", "{question}")])
+
+@ MessagesPlaceholder | 3
+D: Prompt element that inserts a list of messages, such as chat history, at a position in the template.
+U: You must inject the previous conversation turns between the system prompt and the new question.
+T: MessagesPlaceholder("history") expects a list of messages under the key history.
+F: MessagesPlaceholder inserts a single string variable.
+C: ChatPromptTemplate.from_messages([("system", "..."), MessagesPlaceholder("history"), ("human", "{q}")])
+
+@ partial() | 3
+D: Prompt method that pre-fills some template variables, returning a new template.
+T: prompt.partial(date="2026-11-21") leaves the remaining variables to fill later.
+F: partial() executes the prompt against the model.
+C: dated = prompt.partial(date="2026-11-21")
+
+@ Escaping braces | 3
+D: Writing {{ and }} in f-string style templates to produce literal braces.
+T: To show a literal JSON brace in a PromptTemplate, write {{ or }}.
+F: Single braces are always treated as literal characters.
+C: PromptTemplate.from_template('Return JSON like {{"answer": "..."}} for {q}')
+
+@ FewShotChatMessagePromptTemplate | 3
+D: Template that renders example input/output pairs as chat messages for few-shot prompting.
+T: Few-shot templates take a list of examples and an example_prompt.
+F: Few-shot templates fine-tune the model weights.
+C: FewShotChatMessagePromptTemplate(examples=examples, example_prompt=example_prompt)
+
+@ LCEL | 4
+D: The LangChain Expression Language, which composes runnables with the | operator into chains.
+T: In prompt | model | parser, the output of each step becomes the input of the next.
+F: LCEL chains run from right to left.
+C: chain = prompt | model | StrOutputParser()
+
+@ Runnable | 4
+D: The common interface (invoke, batch, stream and async variants) implemented by prompts, models, parsers and retrievers.
+T: Retrievers implement the Runnable interface, so they can be piped in LCEL.
+F: Only chat models implement the Runnable interface.
+C: retriever.invoke("query")\nprompt.invoke({"q": "hi"})
+
+@ RunnableLambda | 4
+D: Wraps a plain Python function so it can be used as a runnable in a chain.
+T: (RunnableLambda(lambda x: x + 1) | RunnableLambda(lambda x: x * 2)).invoke(3) returns 8.
+F: RunnableLambda can only wrap async functions.
+C: add_one = RunnableLambda(lambda x: x + 1)
+
+@ RunnableParallel | 4
+D: Runs several runnables on the same input concurrently and returns a dict of their outputs.
+U: You need both retrieved context and the original question passed to the prompt.
+T: RunnableParallel(a=r1, b=r2).invoke(x) returns {"a": ..., "b": ...}.
+F: RunnableParallel runs branches sequentially and returns only the last output.
+C: RunnableParallel(context=retriever | format_docs, question=RunnablePassthrough())
+
+@ RunnablePassthrough | 4
+D: Runnable that returns its input unchanged, often used to forward the question in a RAG chain.
+T: RunnablePassthrough().invoke("x") returns "x".
+F: RunnablePassthrough calls the LLM with its input.
+C: {"context": retriever | format_docs, "question": RunnablePassthrough()}
+
+@ RunnablePassthrough.assign | 4
+D: Keeps all input keys and adds new keys computed from the input.
+T: RunnablePassthrough.assign(n=lambda d: len(d["text"])) on {"text": "abc"} returns {"text": "abc", "n": 3}.
+F: assign() removes the original keys and keeps only the new ones.
+C: RunnablePassthrough.assign(n=lambda d: len(d["text"]))
+
+@ Dict coercion in LCEL | 4
+D: A dict literal inside a chain is automatically converted into a RunnableParallel.
+T: Writing {"a": r1, "b": r2} | prompt creates a parallel step feeding the prompt.
+F: A dict in an LCEL chain is passed to the next step unchanged as data.
+C: chain = {"context": retriever, "question": RunnablePassthrough()} | prompt | model
+
+@ astream_events | 4
+D: Async method that streams fine-grained events such as token chunks and tool starts from a runnable.
+T: astream_events lets a UI show intermediate steps, not just the final output.
+F: astream_events is only available for prompt templates.
+C: async for ev in chain.astream_events(inputs, version="v2"):\n    print(ev["event"])
+
+@ StrOutputParser | 5
+D: Output parser that extracts the text content of a model message as a plain string.
+T: StrOutputParser().invoke(AIMessage(content="hi")) returns "hi".
+F: StrOutputParser converts text into a Pydantic model.
+C: chain = prompt | model | StrOutputParser()
+
+@ with_structured_output | 5
+D: Chat model method that returns validated objects matching a Pydantic model, TypedDict or JSON schema.
+U: You must extract a support ticket with category and priority from an email.
+T: with_structured_output uses native tool calling or JSON-schema features of the provider.
+F: with_structured_output only works with plain string schemas.
+C: extractor = model.with_structured_output(Ticket)\nticket = extractor.invoke(email)
+B: extractor = model.____(Ticket)\nticket = extractor.invoke(email_text) ;; with_structured_output ;; bind_tools ;; with_config ;; as_parser
+
+@ include_raw | 5
+D: Option of with_structured_output that returns the raw message and parsing errors along with the parsed object.
+T: include_raw=True helps debug cases where parsing the model output fails.
+F: include_raw=True disables validation entirely.
+C: model.with_structured_output(Ticket, include_raw=True)
+
+@ PydanticOutputParser | 5
+D: Parser that adds format instructions to the prompt and parses the model's text into a Pydantic model.
+T: parser.get_format_instructions() produces text you insert into the prompt.
+F: PydanticOutputParser requires the provider to support tool calling.
+C: parser = PydanticOutputParser(pydantic_object=Ticket)\nprompt.partial(format_instructions=parser.get_format_instructions())
+
+@ JsonOutputParser | 5
+D: Parser that turns model text into JSON and can stream partial JSON objects.
+T: JsonOutputParser can emit partially parsed JSON while streaming.
+F: JsonOutputParser only accepts YAML.
+C: chain = prompt | model | JsonOutputParser()
+
+@ @tool decorator | 6
+D: Turns a typed, documented Python function into a tool whose docstring becomes its description.
+U: You want the model to be able to call your get_weather(city) function.
+T: The tool's argument schema is derived from the function's type hints.
+F: The @tool decorator ignores the docstring.
+C: @tool\ndef get_weather(city: str) -> str:\n    """Get the current weather for a city."""\n    return "22 C"
+
+@ bind_tools | 6
+D: Chat model method that tells the model which tools it may call, returning a model that can emit tool_calls.
+T: After bind_tools, the model returns tool calls; your code still executes the tools.
+F: bind_tools executes the tools automatically inside the model provider.
+C: model_with_tools = model.bind_tools([get_weather])\nai = model_with_tools.invoke("Weather in Pune?")\nai.tool_calls
+
+@ tool_calls | 6
+D: List on an AIMessage of the tools the model wants to run, each with name, args and id.
+T: Each entry in tool_calls has a name, an args dict and an id.
+F: tool_calls contains the outputs returned by the tools.
+C: ai.tool_calls  # [{'name': 'get_weather', 'args': {'city': 'Pune'}, 'id': 'call_1'}]
+
+@ tool_choice | 6
+D: Option that forces or restricts which tool the model must call.
+T: tool_choice="any" forces the model to call at least one tool.
+F: tool_choice selects which model provider to use.
+C: model.bind_tools(tools, tool_choice="any")
+
+@ ToolRuntime | 6
+D: Injected parameter giving tools access to agent state, context, store and stream writer.
+T: Tools can read runtime context such as a user id through ToolRuntime.
+F: ToolRuntime exposes the model's API key to the user.
+C: @tool\ndef whoami(runtime: ToolRuntime) -> str:\n    return runtime.context.user_id
+
+@ MCP adapters | 6
+D: Integration that converts tools from Model Context Protocol servers into LangChain tools.
+U: Your company exposes internal tools as MCP servers and you want an agent to use them.
+T: MultiServerMCPClient can connect to stdio and streamable HTTP MCP servers.
+F: MCP tools can only be used by OpenAI models.
+C: client = MultiServerMCPClient({"docs": {"url": "http://localhost:8000/mcp", "transport": "streamable_http"}})\ntools = await client.get_tools()
+
+@ Document | 8
+D: LangChain's unit of loaded text with page_content and a metadata dict.
+T: Loaders return a list of Document objects with page_content and metadata.
+F: Document objects store embeddings instead of text.
+C: docs = PyPDFLoader("handbook.pdf").load()\ndocs[0].page_content, docs[0].metadata
+
+@ Document loader | 8
+D: Component that reads a source (PDF, web page, Notion, database) into Document objects.
+T: PyPDFLoader produces one Document per page with the page number in metadata.
+F: Document loaders split text into chunks automatically by default.
+C: from langchain_community.document_loaders import PyPDFLoader
+
+@ RecursiveCharacterTextSplitter | 8
+D: The default text splitter that tries separators in order (paragraphs, lines, spaces, characters) to keep text coherent.
+U: You need a robust general-purpose chunker for mixed documentation.
+T: chunk_overlap repeats text between neighbouring chunks to preserve context.
+F: RecursiveCharacterTextSplitter splits only on exact token counts from the model's tokenizer.
+C: splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)\nchunks = splitter.split_documents(docs)
+
+@ MarkdownHeaderTextSplitter | 8
+D: Splitter that chunks Markdown by headers and stores the header path in metadata.
+T: MarkdownHeaderTextSplitter keeps section headings as metadata on each chunk.
+F: MarkdownHeaderTextSplitter removes all headings permanently.
+C: MarkdownHeaderTextSplitter(headers_to_split_on=[("#", "h1"), ("##", "h2")])
+
+@ Embeddings interface | 8
+D: Standard interface with embed_documents and embed_query that converts text into vectors.
+T: Embeddings expose embed_query for queries and embed_documents for lists of texts.
+F: Embeddings generate chat responses.
+C: emb = OpenAIEmbeddings(model="text-embedding-3-small")\nemb.embed_query("hello")
+
+@ InMemoryVectorStore | 8
+D: A simple vector store kept in Python memory, useful for tests and prototypes.
+T: InMemoryVectorStore loses its data when the process exits.
+F: InMemoryVectorStore persists to disk automatically.
+C: store = InMemoryVectorStore(embeddings)\nstore.add_documents(chunks)
+
+@ as_retriever | 8
+D: Vector store method that returns a Runnable retriever with configurable search type and k.
+T: as_retriever(search_kwargs={"k": 4}) returns the top four documents.
+F: as_retriever deletes the vector store after one query.
+C: retriever = store.as_retriever(search_type="mmr", search_kwargs={"k": 4, "fetch_k": 20})
+B: retriever = vector_store.____(search_kwargs={"k": 4}) ;; as_retriever ;; to_retriever ;; retriever ;; get_retriever
+
+@ MMR search | 8
+D: Maximal marginal relevance retrieval that balances relevance with diversity among returned documents.
+U: Top results are near-duplicates of each other and you want more varied context.
+T: MMR fetches fetch_k candidates and selects k that are relevant but diverse.
+F: MMR always returns the same results as plain similarity search.
+C: store.as_retriever(search_type="mmr", search_kwargs={"k": 4, "fetch_k": 20})
+
+@ Agentic RAG tool | 8
+D: Exposing retrieval as a tool so the agent decides when and how often to search.
+T: Wrapping a retriever in a @tool lets create_agent call it multiple times per question.
+F: Agentic RAG always performs exactly one retrieval per question.
+C: @tool\ndef search_handbook(query: str) -> str:\n    """Search the handbook."""\n    return format_docs(retriever.invoke(query))
+
+@ Checkpointer | 9
+D: Persistence component that saves conversation state per thread so agents remember earlier turns.
+U: The agent must remember the user's name across messages in the same chat.
+T: Passing the same thread_id in config lets the agent resume prior state.
+F: A checkpointer stores long-term facts shared across all threads by default.
+C: agent = create_agent(model, tools, checkpointer=InMemorySaver())\nagent.invoke(inputs, {"configurable": {"thread_id": "user-42"}})
+
+@ thread_id | 9
+D: Configuration key that identifies a conversation so its checkpointed state can be loaded.
+T: Two different thread_id values keep conversations isolated.
+F: thread_id selects which model provider to call.
+C: config = {"configurable": {"thread_id": "1"}}
+
+@ Long-term memory store | 9
+D: A store such as InMemoryStore or PostgresStore holding facts across threads, organized by namespaces.
+U: User preferences should be remembered across different conversations.
+T: Stores persist information across threads, unlike thread-scoped checkpoints.
+F: Long-term memory stores are reset at the end of every thread.
+C: store.put(("users", "u1"), "prefs", {"lang": "Hindi"})
+
+@ stream_mode="messages" | 9
+D: Streaming mode that yields LLM token chunks with metadata as they are generated.
+T: stream_mode="messages" is used to show tokens live in a UI.
+F: stream_mode="messages" only returns the final state.
+C: for token, meta in agent.stream(inputs, stream_mode="messages"):\n    print(token.content, end="")
+
+@ stream_mode="updates" | 9
+D: Streaming mode that yields the state changes produced by each step (model or tools).
+T: updates mode emits one chunk per step showing what changed.
+F: updates mode streams raw audio.
+C: for chunk in agent.stream(inputs, stream_mode="updates"):\n    print(chunk)
+
+@ LangSmith tracing | 9
+D: Observability enabled by environment variables that records every run's inputs, outputs, latency and tokens.
+U: You want every chain and agent run traced without changing code.
+T: Setting LANGSMITH_TRACING=true and an API key enables automatic tracing.
+F: LangSmith tracing requires rewriting chains with a special syntax.
+C: export LANGSMITH_TRACING=true\nexport LANGSMITH_API_KEY=...
+
+@ Deep Agents | 1
+D: The deepagents harness built on LangChain/LangGraph that adds planning, a file system and sub-agents.
+T: deepagents is built on top of LangChain and LangGraph.
+F: deepagents is a vector database.
+C: from deepagents import create_deep_agent
+
+% LangChain message type | 2 | HumanMessage; AIMessage; SystemMessage; ToolMessage; AIMessageChunk | LangChain output parser
+% LangChain output parser | 5 | StrOutputParser; JsonOutputParser; PydanticOutputParser; CommaSeparatedListOutputParser; XMLOutputParser | LangChain message type
+% LangChain prompt template class | 3 | PromptTemplate; ChatPromptTemplate; FewShotChatMessagePromptTemplate; MessagesPlaceholder
+% LCEL runnable primitive | 4 | RunnableLambda; RunnableParallel; RunnablePassthrough; RunnableBranch; RunnableSequence
+% LangChain text splitter | 8 | RecursiveCharacterTextSplitter; CharacterTextSplitter; TokenTextSplitter; MarkdownHeaderTextSplitter; HTMLHeaderTextSplitter | LangChain document loader
+% LangChain document loader | 8 | PyPDFLoader; WebBaseLoader; CSVLoader; TextLoader; DirectoryLoader | LangChain text splitter
+% built-in create_agent middleware | 7 | SummarizationMiddleware; HumanInTheLoopMiddleware; PIIMiddleware; ModelCallLimitMiddleware; ToolCallLimitMiddleware; ModelFallbackMiddleware | middleware hook name
+% middleware hook name | 7 | before_agent; before_model; wrap_model_call; after_model; wrap_tool_call; after_agent | built-in create_agent middleware
+% vector store supported by LangChain | 8 | Chroma; FAISS; PGVector; Qdrant; Pinecone; InMemoryVectorStore
+% Runnable method | 4 | invoke; batch; stream; ainvoke; astream_events; with_retry; with_fallbacks
+% LangChain provider integration package | 1 | langchain-openai; langchain-anthropic; langchain-google-genai; langchain-ollama; langchain-aws
+
+> Order of steps in a basic RAG pipeline with LangChain | 8 | load documents ; split into chunks ; embed and store in a vector store ; retrieve relevant chunks ; generate the answer with the LLM
+> What happens when a chat model requests a tool | 6 | model returns an AIMessage with tool_calls ; your code runs the tool with the given args ; a ToolMessage with the result is appended ; the model is called again to produce the answer
+> Data flow through an LCEL chain of prompt, model and StrOutputParser | 4 | input dict fills the prompt template ; prompt value is sent to the chat model ; the model returns an AIMessage ; the parser returns the message text as a string

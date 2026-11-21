@@ -1,0 +1,253 @@
+# Hybrid RAG. Lessons: 1 lexical vs semantic, 2 BM25 & sparse, 3 fusion, 4 implementations, 5 reranking, 6 query understanding, 7 tuning/eval
+@ Lexical retrieval | 1
+D: Retrieval that matches exact terms using an inverted index, as in TF-IDF and BM25.
+U: Users search for exact error codes like ORA-00942.
+T: Lexical retrieval excels at exact identifiers, names and rare jargon.
+F: Lexical retrieval understands that "car" and "automobile" mean the same thing.
+C: bm25.get_scores("reset password".split())
+
+@ Semantic retrieval | 1
+D: Retrieval that compares dense embeddings to match meaning, including paraphrases and synonyms.
+T: Dense retrieval can match a query to a document that shares no words with it.
+F: Dense retrieval is always better than BM25 at matching product codes.
+C: store.similarity_search("How do I recover my account?", k=5)
+
+@ Hybrid search | 1
+D: Running keyword and vector retrieval together and fusing their result lists.
+U: Your corpus mixes natural-language docs and many exact part numbers.
+T: Hybrid search usually outperforms either keyword or vector search alone.
+F: Hybrid search means using two different LLMs to answer.
+C: fused = rrf([bm25_ids, dense_ids])
+
+@ Inverted index | 1
+D: A mapping from each term to the list of documents that contain it.
+T: Inverted indexes make keyword lookup fast.
+F: An inverted index stores dense vectors for ANN search.
+C: {"password": [3, 17, 42], "reset": [3, 9]}
+
+@ Vocabulary mismatch | 1
+D: The problem where a query and a relevant document use different words for the same idea.
+T: Vocabulary mismatch is a key weakness of pure keyword search.
+F: Vocabulary mismatch only affects dense retrieval.
+C: # query: "car"  document: "automobile"
+
+@ TF-IDF | 2
+D: Weighting a term by its frequency in a document times the inverse of how many documents contain it.
+T: Terms that appear in almost every document get a low IDF.
+F: TF-IDF gives the highest weight to terms that appear in every document.
+C: tfidf = tf * math.log(N / df)
+
+@ BM25 | 2
+D: A ranking function improving TF-IDF with term-frequency saturation and document length normalization.
+T: BM25 scores grow more slowly as a term repeats, due to saturation.
+F: BM25 scores increase linearly forever with repeated terms.
+C: from rank_bm25 import BM25Okapi\nbm25 = BM25Okapi(tokenized_corpus, k1=1.5, b=0.75)
+
+@ BM25 k1 | 2
+D: The BM25 parameter controlling how quickly term-frequency contribution saturates (typically 1.2–2.0).
+T: A larger k1 lets repeated terms keep adding more score.
+F: k1 controls document length normalization.
+C: BM25Okapi(corpus, k1=1.5)
+
+@ BM25 b | 2
+D: The BM25 parameter controlling document length normalization, from 0 (none) to 1 (full); typically 0.75.
+T: b = 0 disables length normalization.
+F: b controls term-frequency saturation.
+C: BM25Okapi(corpus, b=0.75)
+
+@ IDF | 2
+D: Inverse document frequency: rarer terms across the corpus receive higher weight.
+T: A term found in only 1 of 1,000 documents has high IDF.
+F: IDF is highest for stop-words like "the".
+C: idf = math.log((N - n + 0.5) / (n + 0.5) + 1)
+
+@ SPLADE | 2
+D: A learned sparse retrieval model producing vocabulary-sized sparse vectors with learned term weights and expansions.
+U: You want inverted-index efficiency but better handling of synonyms.
+T: SPLADE can assign weight to expansion terms that do not appear in the text.
+F: SPLADE produces dense 768-dimensional vectors.
+C: # sparse vector: {"car": 1.8, "vehicle": 1.1, "auto": 0.7}
+
+@ Sparse vector | 2
+D: A vector over the vocabulary where only a few dimensions are non-zero.
+T: Sparse vectors are stored as (index, value) pairs.
+F: Sparse vectors have values in every dimension.
+C: models.SparseVector(indices=[12, 4051], values=[0.8, 1.3])
+
+@ Dense vector | 2
+D: A fixed-length embedding where every dimension has a value, typically 256–4096 dimensions.
+T: Dense vectors are searched with ANN indexes like HNSW.
+F: Dense vectors are searched with inverted indexes only.
+C: vec = embed("reset password")  # len(vec) == 768
+
+@ Reciprocal Rank Fusion | 3
+D: Fusing ranked lists by summing 1/(k + rank) for each document across lists, with k usually 60.
+U: You need to combine BM25 and vector results without calibrating their scores.
+T: RRF uses only ranks, not raw scores.
+F: RRF requires BM25 and cosine scores to be on the same scale.
+C: score[d] += 1 / (60 + rank)
+
+@ RRF constant k | 3
+D: The constant in RRF (commonly 60) that dampens the advantage of top ranks.
+T: A smaller k makes the top ranks dominate more.
+F: Changing k has no effect on fused rankings.
+C: rrf(lists, k=60)
+
+@ Weighted score fusion | 3
+D: Normalizing each retriever's scores and combining them as α·dense + (1−α)·sparse.
+T: With α = 1, weighted fusion becomes pure dense retrieval.
+F: With α = 1, weighted fusion becomes pure keyword retrieval.
+C: hybrid = alpha * dense_norm + (1 - alpha) * sparse_norm
+
+@ Min-max normalization | 3
+D: Rescaling scores to [0, 1] with (x − min) / (max − min).
+T: Min-max normalization maps the best score in a list to 1.
+F: Min-max normalization maps the best score to 0.
+C: norm = (x - lo) / (hi - lo)
+
+@ Score scale mismatch | 3
+D: BM25 scores are unbounded while cosine scores lie in [−1, 1], so raw scores cannot simply be added.
+T: Adding raw BM25 and cosine scores lets BM25 dominate.
+F: BM25 and cosine scores always share the same range.
+C: # bm25: 0–25, cosine: -1–1 -> normalize or use RRF
+
+@ Distribution-based score fusion | 3
+D: A fusion method that normalizes scores using their statistical distribution before combining.
+T: DBSF is offered by Qdrant as an alternative to RRF.
+F: DBSF ignores scores entirely.
+C: models.FusionQuery(fusion=models.Fusion.DBSF)
+
+@ EnsembleRetriever | 4
+D: LangChain retriever that combines several retrievers with weighted Reciprocal Rank Fusion.
+T: EnsembleRetriever(retrievers=[bm25, dense], weights=[0.4, 0.6]) weights the lists.
+F: EnsembleRetriever averages raw similarity scores without fusion.
+C: hybrid = EnsembleRetriever(retrievers=[bm25, dense], weights=[0.4, 0.6])
+
+@ BM25Retriever | 4
+D: LangChain community retriever that scores documents with BM25 in memory.
+T: BM25Retriever does not need an embedding model.
+F: BM25Retriever requires a GPU.
+C: bm25 = BM25Retriever.from_documents(chunks)\nbm25.k = 10
+
+@ Weaviate hybrid alpha | 4
+D: Weaviate's hybrid parameter where 0 is pure BM25 and 1 is pure vector search.
+T: alpha=0.5 weights keyword and vector results equally.
+F: alpha=0 means pure vector search in Weaviate.
+C: collection.query.hybrid(query="reset password", alpha=0.5, limit=5)
+
+@ Qdrant prefetch fusion | 4
+D: Running dense and sparse prefetch queries in Qdrant and fusing them server-side with RRF or DBSF.
+T: Qdrant can fuse dense and sparse results in a single query.
+F: Qdrant cannot store sparse vectors.
+C: client.query_points("docs", prefetch=[dense_prefetch, sparse_prefetch], query=models.FusionQuery(fusion=models.Fusion.RRF))
+
+@ Elasticsearch hybrid | 4
+D: Combining a BM25 match query with a kNN vector query in Elasticsearch, fused with the rrf retriever.
+T: Elasticsearch supports both BM25 and vector search in one engine.
+F: Elasticsearch only supports vector search.
+C: {"retriever": {"rrf": {"retrievers": [{"standard": {...}}, {"knn": {...}}]}}}
+
+@ Postgres hybrid search | 4
+D: Combining pgvector similarity with Postgres full-text search (tsvector) and fusing them with SQL.
+U: You want hybrid search without adding a new database.
+T: ts_rank_cd can rank full-text matches in Postgres.
+F: Postgres cannot do keyword search.
+C: SELECT id, SUM(1.0 / (60 + r)) AS rrf FROM (...) u GROUP BY id ORDER BY rrf DESC
+
+@ Bi-encoder | 5
+D: A model that encodes query and document separately into vectors so documents can be indexed in advance.
+T: Bi-encoders allow precomputing document embeddings.
+F: Bi-encoders must run once for every (query, document) pair at query time.
+C: doc_vecs = model.encode(docs)\nq_vec = model.encode(query)
+
+@ Cross-encoder | 5
+D: A model that reads the query and document together and outputs a relevance score.
+U: You need the most accurate ordering of the top 30 candidates.
+T: Cross-encoders are typically used as second-stage rerankers.
+F: Cross-encoders are the fastest option for first-stage retrieval over millions of documents.
+C: scores = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2").predict(pairs)
+
+@ ColBERT | 5
+D: A late-interaction retriever storing one vector per token and scoring with MaxSim.
+T: ColBERT is more expressive than single-vector bi-encoders.
+F: ColBERT stores a single vector per document.
+C: # score = Σ_q max_d sim(q_tok, d_tok)
+
+@ MaxSim | 5
+D: Late-interaction scoring: for each query token take the maximum similarity to any document token, then sum.
+T: MaxSim sums per-query-token maxima.
+F: MaxSim takes the minimum similarity over all tokens.
+C: score = sum(max(q @ d.T for d in doc_tokens) for q in query_tokens)
+
+@ LLM reranker | 5
+D: Using an LLM to score or order candidate passages, as in listwise reranking (RankGPT).
+T: LLM reranking is flexible but expensive and slow.
+F: LLM rerankers are cheaper than cross-encoders.
+C: "Rank these passages by relevance to the query: ..."
+
+@ Query rewriting | 6
+D: Using an LLM to turn a messy or conversational query into a clean standalone search query.
+U: The user's follow-up "and for the pro plan?" retrieves nothing useful.
+T: Condensing chat history into a standalone query improves retrieval for follow-ups.
+F: Query rewriting changes the documents in the index.
+C: standalone = llm(f"Rewrite as a standalone search query: {history}\n{question}")
+
+@ Multi-query retrieval | 6
+D: Generating several query variants, retrieving for each, and fusing the results.
+T: Multi-query retrieval raises recall when wording varies.
+F: Multi-query retrieval always returns fewer documents than a single query.
+C: lists = [retriever.invoke(v) for v in [q, *variants]]\nfused = rrf(lists)
+
+@ HyDE | 6
+D: Hypothetical Document Embeddings: embed an LLM-written hypothetical answer and search with it.
+U: Short questions don't match the style of long technical documents.
+T: HyDE can mislead retrieval if the hypothetical answer is wrong for niche facts.
+F: HyDE embeds the user's question twice.
+C: fake = llm(f"Write a passage answering: {q}")\nresults = store.similarity_search(fake)
+
+@ Query expansion | 6
+D: Adding synonyms, acronym expansions or spelling variants to the keyword query.
+T: Expanding "k8s" to "kubernetes" helps BM25 match more documents.
+F: Query expansion removes words from the query.
+C: query = "k8s kubernetes pod crash"
+
+@ Query routing | 6
+D: Classifying a query to choose a retrieval strategy, source or fusion weights.
+T: Code-heavy queries can be routed to weight BM25 more.
+F: Routing sends every query to every source with equal weight.
+C: weights = [0.7, 0.3] if looks_like_code(q) else [0.3, 0.7]
+
+@ Candidate depth | 7
+D: How many results each retriever returns before fusion and reranking.
+T: Deeper candidate lists raise recall but increase latency and reranking cost.
+F: Candidate depth has no effect on recall.
+C: bm25.k = 30; dense = store.as_retriever(search_kwargs={"k": 30})
+
+@ Parallel retrieval | 7
+D: Running BM25 and vector retrieval concurrently so latency is close to the slower leg.
+T: Running both legs in parallel keeps hybrid latency low.
+F: Hybrid search must run keyword and vector retrieval sequentially.
+C: bm25_res, dense_res = await asyncio.gather(bm25.ainvoke(q), dense.ainvoke(q))
+
+@ Per-slice evaluation | 7
+D: Measuring retrieval metrics separately for query types such as codes, questions or languages.
+T: Hybrid gains are often concentrated in specific query slices.
+F: Average metrics always reveal where hybrid search helps.
+C: for slice_name, qs in slices.items():\n    print(slice_name, recall_at_k(qs))
+
+@ Consistent chunk ids | 7
+D: Using the same chunk identifiers in the keyword and vector indexes so fusion can merge results.
+T: Fusion needs matching ids across both indexes.
+F: Keyword and vector indexes should use unrelated ids.
+C: doc_id = f"{source}#{chunk_no}"
+
+% lexical retrieval method | 2 | BM25; TF-IDF; Okapi BM25F; boolean keyword match | dense retrieval model
+% dense retrieval model | 5 | bi-encoder embedding model; text-embedding-3-small; BGE-M3 dense output; E5 | lexical retrieval method
+% rank or score fusion method | 3 | Reciprocal Rank Fusion; weighted (convex) combination; distribution-based score fusion; CombSUM | reranking model
+% reranking model | 5 | cross-encoder; ColBERT late interaction; LLM listwise reranker; Cohere Rerank | rank or score fusion method
+% query transformation technique | 6 | query rewriting; multi-query generation; HyDE; step-back prompting; query expansion
+% system with built-in hybrid search | 4 | Weaviate; Qdrant; Elasticsearch; OpenSearch; Vespa; Pinecone
+% learned sparse model | 2 | SPLADE; BGE-M3 sparse output; uniCOIL
+
+> Typical hybrid RAG query pipeline | 1 | rewrite the query ; run BM25 and dense retrieval in parallel ; fuse the lists with RRF ; rerank the top candidates with a cross-encoder ; send the best chunks to the LLM
+> Weighted score fusion | 3 | retrieve candidates from each retriever ; min-max normalize scores per list ; combine as alpha·dense + (1 − alpha)·sparse ; sort by the combined score

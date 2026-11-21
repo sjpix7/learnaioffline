@@ -1,0 +1,663 @@
+# Python facts. Lessons: 1 basics, 2 control/functions, 3 data structures, 4 OOP, 5 iter/gen/deco/ctx, 6 typing/pydantic, 7 errors/logging/files, 8 async, 9 env/packaging/testing, 10 modern python
+@ Dynamic typing | 1
+D: Names are not bound to a fixed type; the same name can later refer to an object of a different type.
+T: In Python, types belong to objects, not to variable names.
+F: Once a variable holds an int, assigning a string to it raises a TypeError.
+C: x = 10\nx = "ten"   # allowed: x now refers to a str
+
+@ Strong typing | 1
+D: The interpreter refuses to silently combine incompatible types, raising an error instead of guessing.
+T: "5" + 5 raises a TypeError in Python.
+F: Python silently converts "5" + 5 into the integer 10.
+C: "5" + 5   # TypeError: can only concatenate str (not "int") to str
+
+@ Floor division (//) | 1
+D: Division that rounds the result down toward negative infinity.
+T: -7 // 2 evaluates to -4 because floor division rounds toward negative infinity.
+F: -7 // 2 evaluates to -3 because floor division truncates toward zero.
+C: 7 // 2   # 3\n-7 // 2  # -4
+
+@ True division (/) | 1
+D: Division operator that always returns a float in Python 3, even for evenly divisible integers.
+T: 6 / 3 returns 2.0, a float.
+F: 6 / 3 returns the integer 2.
+C: 6 / 3   # 2.0
+
+@ Banker's rounding | 1
+D: Rounding halves to the nearest even number, as done by the built-in round().
+T: round(2.5) returns 2 and round(3.5) returns 4.
+F: round(2.5) returns 3 because round() always rounds halves up.
+C: round(2.5), round(3.5)   # (2, 4)
+
+@ math.isclose | 1
+D: Compares floats within a tolerance to avoid problems caused by binary floating-point error.
+U: You need to check whether 0.1 + 0.2 equals 0.3 reliably.
+T: 0.1 + 0.2 == 0.3 is False in Python because of floating-point representation error.
+F: 0.1 + 0.2 == 0.3 is True because Python uses exact decimal arithmetic for floats.
+C: import math\nmath.isclose(0.1 + 0.2, 0.3)   # True
+
+@ Slicing | 1
+D: Extracting a sub-sequence with [start:stop:step], where the stop index is excluded.
+T: In s[a:b], the element at index b is not included.
+F: In s[a:b], both index a and index b are included.
+C: s = "LangGraph"\ns[4:]    # 'Graph'\ns[::-1]  # reversed
+B: s = "LangGraph"\nprint(s[____])  # prints 'Graph' ;; 4: ;; 5: ;; :4 ;; 4:-1
+
+@ f-string | 1
+D: A string literal prefixed with f that evaluates expressions inside braces at runtime.
+T: f"{3.14159:.2f}" produces '3.14'.
+F: f-strings are evaluated once when the module is imported, not when the line runs.
+C: name, n = "RAG", 3\nf"{name} x{n} = {n*2:.1f}"   # 'RAG x3 = 6.0'
+
+@ Truthiness | 1
+D: The rule that empty containers, zero, empty strings and None evaluate as False in a boolean context.
+T: bool([]) is False and bool([0]) is True.
+F: bool("False") is False because the string spells False.
+C: if not []:\n    print("empty list is falsy")
+
+@ is vs == | 1
+D: One operator compares object identity while the other compares values.
+T: Two separate lists [1] and [1] are equal (==) but not identical (is).
+F: a is b is always True when a == b is True.
+C: a = [1]; b = [1]\na == b, a is b   # (True, False)
+
+@ bool subclass of int | 1
+D: True and False are integers 1 and 0, so they can be summed and used in arithmetic.
+T: True + True evaluates to 2.
+F: True + True raises a TypeError because booleans are not numbers.
+C: sum([True, False, True])   # 2
+
+@ range() | 2
+D: Built-in that produces an arithmetic sequence of integers, excluding the stop value.
+T: list(range(2, 10, 3)) is [2, 5, 8].
+F: range(1, 5) includes the number 5.
+C: list(range(2, 10, 3))   # [2, 5, 8]
+B: for i in range(____):\n    print(i)   # prints 0 1 2 ;; 3 ;; 2 ;; 0, 2 ;; 1, 3
+
+@ Loop else clause | 2
+D: A block attached to for/while that runs only when the loop finishes without hitting break.
+T: A for loop's else block is skipped if the loop exits through break.
+F: A for loop's else block runs only when the loop body raised an exception.
+C: for x in []:\n    pass\nelse:\n    print("no break happened")
+
+@ match statement | 2
+D: Structural pattern matching introduced in Python 3.10 that matches values, sequences and mappings against patterns.
+T: case _: acts as a wildcard that matches anything in a match statement.
+F: match/case was introduced in Python 3.6.
+C: match event:\n    case {"type": "tool_call", "name": name}:\n        ...\n    case _:\n        ...
+
+@ Keyword-only parameter | 2
+D: A function parameter declared after a bare * that can only be passed by name.
+T: In def f(a, *, b): ..., calling f(1, 2) raises a TypeError.
+F: Parameters after a bare * can be passed positionally.
+C: def chunk(text, size=100, *, overlap=0): ...\nchunk("abc", 2, overlap=1)
+B: def f(a, ____, b):\n    ...\nf(1, b=2)  # b must be passed by keyword ;; * ;; / ;; ** ;; ...
+
+@ Positional-only parameter | 2
+D: A parameter declared before a / marker that cannot be passed by keyword.
+T: In def f(a, /, b): ..., calling f(a=1, b=2) raises a TypeError.
+F: Parameters before / can only be passed as keywords.
+C: def f(a, /, b):\n    return a + b\nf(1, b=2)
+
+@ *args | 2
+D: Syntax that collects extra positional arguments into a tuple.
+T: Inside def f(*args), args is a tuple.
+F: Inside def f(*args), args is a list.
+C: def f(*args):\n    return type(args)\nf(1, 2)   # <class 'tuple'>
+
+@ **kwargs | 2
+D: Syntax that collects extra keyword arguments into a dictionary.
+T: Inside def f(**kwargs), kwargs is a dict mapping names to values.
+F: **kwargs collects extra positional arguments into a tuple.
+C: def f(**kwargs):\n    return kwargs\nf(a=1)   # {'a': 1}
+
+@ Mutable default argument | 2
+D: The pitfall where a list or dict default is created once at definition time and shared across calls.
+U: A function keeps returning items from previous calls in its default list.
+T: Default argument values are evaluated once, when the def statement executes.
+F: Default argument values are re-created fresh on every call.
+C: def add(item, bucket=None):\n    if bucket is None:\n        bucket = []\n    bucket.append(item)\n    return bucket
+
+@ LEGB rule | 2
+D: The name-resolution order Local, Enclosing, Global, Built-in.
+T: Python looks up a name in the local scope before the enclosing function's scope.
+F: Python looks up built-in names before local variables.
+C: x = "global"\ndef outer():\n    x = "enclosing"\n    def inner():\n        return x   # 'enclosing'\n    return inner()
+
+@ nonlocal | 2
+D: Keyword that lets a nested function rebind a variable defined in its enclosing function.
+U: A closure must increment a counter variable that belongs to its outer function.
+T: Without nonlocal, assigning to an outer variable inside a nested function creates a new local variable.
+F: nonlocal rebinds module-level (global) variables.
+C: def counter():\n    count = 0\n    def inc():\n        nonlocal count\n        count += 1\n        return count\n    return inc
+B: def counter():\n    n = 0\n    def inc():\n        ____ n\n        n += 1\n        return n\n    return inc ;; nonlocal ;; global ;; local ;; static
+
+@ lambda | 2
+D: An anonymous single-expression function.
+T: A lambda body is a single expression, not a block of statements.
+F: A lambda can contain multiple statements separated by semicolons and a return.
+C: sorted(["bb", "a", "ccc"], key=lambda s: len(s))
+
+@ list.sort vs sorted | 3
+D: One sorts a list in place and returns None; the other returns a new sorted list from any iterable.
+T: nums.sort() returns None.
+F: sorted(nums) modifies nums in place.
+C: nums = [3, 1, 2]\nnew = sorted(nums)   # [1, 2, 3], nums unchanged\nnums.sort()          # returns None
+
+@ Tuple unpacking | 3
+D: Assigning the elements of a sequence to several names in one statement, optionally with a starred catch-all.
+T: first, *rest = [1, 2, 3] sets rest to [2, 3].
+F: first, *rest = [1, 2, 3] sets rest to the tuple (2, 3).
+C: first, *rest = [1, 2, 3, 4]\na, b = b, a   # swap
+
+@ Single-element tuple | 3
+D: A tuple with one item, which requires a trailing comma.
+T: (1,) is a tuple while (1) is just the integer 1.
+F: (1) creates a tuple containing 1.
+C: type((1,)), type((1))   # (tuple, int)
+
+@ dict.get | 3
+D: Dictionary method returning the value for a key, or a default instead of raising KeyError.
+T: cfg.get("missing") returns None when the key is absent and no default is given.
+F: cfg.get("missing") raises KeyError when the key is absent.
+C: cfg = {"model": "gpt"}\ncfg.get("top_p", 1.0)   # 1.0
+
+@ Dict merge operator (|) | 3
+D: Python 3.9+ operator that merges two dicts into a new one, with the right operand winning on conflicts.
+T: {"a": 1} | {"a": 2} evaluates to {'a': 2}.
+F: {"a": 1} | {"a": 2} keeps the left value 1.
+C: merged = cfg | {"temperature": 0.7}
+
+@ Insertion order of dicts | 3
+D: The guarantee, since Python 3.7, that dictionaries iterate in the order keys were inserted.
+T: Iterating a dict yields keys in insertion order in Python 3.7+.
+F: Dict iteration order is random in modern Python.
+C: d = {"b": 1, "a": 2}\nlist(d)   # ['b', 'a']
+
+@ Hashable keys | 3
+D: Dictionary keys and set elements must have a stable hash, so immutable types like str, int and tuples of immutables qualify.
+T: A list cannot be used as a dictionary key.
+F: Lists can be dictionary keys because they have a fixed length.
+C: {(1, 2): "ok"}      # fine\n{[1, 2]: "bad"}     # TypeError: unhashable type: 'list'
+
+@ collections.Counter | 3
+D: A dict subclass that counts hashable items and offers most_common().
+U: You need the frequency of each token in a list.
+T: Counter("banana")["a"] is 3.
+F: Counter returns counts sorted alphabetically by key.
+C: from collections import Counter\nCounter("banana").most_common(1)   # [('a', 3)]
+
+@ collections.defaultdict | 3
+D: A dict that creates a default value via a factory when a missing key is accessed.
+U: You want to group documents into lists by category without checking if each key exists.
+T: defaultdict(list)["new"] returns an empty list and inserts the key.
+F: defaultdict raises KeyError for missing keys like a normal dict.
+C: from collections import defaultdict\ngroups = defaultdict(list)\ngroups["docs"].append("a.txt")
+
+@ Set operations | 3
+D: Union, intersection, difference and symmetric difference using |, &, - and ^.
+T: {1, 2, 3} & {2, 3, 4} is {2, 3}.
+F: {1, 2, 3} - {2, 3, 4} is {1, 4}.
+C: a, b = {1, 2, 3}, {2, 3, 4}\na | b, a & b, a - b, a ^ b
+
+@ Membership complexity | 3
+D: Checking x in container is O(1) on average for sets and dicts but O(n) for lists.
+T: Testing membership in a set is on average much faster than in a long list.
+F: Membership tests on lists use hashing and are O(1).
+C: allowed = set(big_list)\nif user_id in allowed: ...
+
+@ List comprehension | 3
+D: Concise syntax that builds a list from an iterable with an optional filter, e.g. [f(x) for x in xs if cond].
+T: [x * x for x in range(4)] is [0, 1, 4, 9].
+F: A list comprehension always returns a generator.
+C: evens = [x for x in range(10) if x % 2 == 0]
+
+@ Generator expression | 3
+D: A lazily evaluated comprehension written with parentheses that yields items one at a time.
+U: You want to sum squares of a billion numbers without building a list in memory.
+T: sum(x * x for x in range(5)) does not build an intermediate list.
+F: Generator expressions are evaluated eagerly like list comprehensions.
+C: total = sum(x * x for x in range(5))   # 30
+
+@ Shallow copy | 3
+D: A new outer container whose nested objects are still shared with the original.
+T: After b = a.copy(), appending to b[0] also changes a[0] when a[0] is a list.
+F: list.copy() recursively copies all nested lists.
+C: a = [[1], [2]]\nb = a.copy()\nb[0].append(9)   # a is now [[1, 9], [2]]
+
+@ copy.deepcopy | 3
+D: Recursively copies an object and everything it contains.
+U: You must modify a nested config dict without affecting the original.
+T: copy.deepcopy creates independent copies of nested lists.
+F: copy.deepcopy shares nested objects with the original.
+C: import copy\nc = copy.deepcopy(a)
+
+@ Dunder methods | 4
+D: Special methods such as __init__, __repr__ and __len__ that integrate objects with built-in syntax.
+T: Implementing __len__ lets len(obj) work on your class.
+F: __repr__ is called automatically when an object is created.
+C: class Doc:\n    def __len__(self):\n        return 42\nlen(Doc())   # 42
+
+@ Class attribute | 4
+D: An attribute defined in the class body and shared by all instances unless shadowed.
+T: Assigning self.kind = "pdf" on one instance does not change the class attribute for other instances.
+F: Instance attributes are shared by all instances of a class.
+C: class Document:\n    kind = "text"   # shared class attribute
+
+@ super() | 4
+D: Built-in used inside a method to call the parent class implementation following the MRO.
+T: super().__init__(...) in a subclass runs the parent's initializer.
+F: super() can only be used in classes with exactly one parent.
+C: class PDFDocument(Document):\n    def __init__(self, content, source, pages):\n        super().__init__(content, source)\n        self.pages = pages
+
+@ MRO | 4
+D: Method resolution order: the linearized order in which Python searches classes for attributes.
+T: You can inspect a class's method resolution order with ClassName.__mro__.
+F: Python searches parent classes in random order to find a method.
+C: PDFDocument.__mro__
+
+@ classmethod | 4
+D: A method that receives the class as its first argument, often used as an alternative constructor.
+U: You want Embedder.from_name("bge") to build an instance from a configuration name.
+T: A classmethod receives cls instead of self.
+F: A classmethod cannot be called on the class itself, only on instances.
+C: class Embedder:\n    @classmethod\n    def from_name(cls, name):\n        return cls()
+
+@ staticmethod | 4
+D: A method that receives neither the instance nor the class, behaving like a plain function in the class namespace.
+T: A staticmethod has no implicit first argument.
+F: A staticmethod automatically receives the instance as self.
+C: class Embedder:\n    @staticmethod\n    def normalize(v): ...
+
+@ property | 4
+D: Decorator that exposes a method as an attribute, computed on access.
+T: With @property def dim(self), you access it as obj.dim without parentheses.
+F: A @property must be called with parentheses like obj.dim().
+C: class Embedder:\n    @property\n    def dim(self):\n        return 768
+
+@ Abstract base class | 4
+D: A class with abstract methods that cannot be instantiated until subclasses implement them.
+U: You want to force every retriever implementation to define a retrieve() method.
+T: Instantiating a class that still has unimplemented abstract methods raises TypeError.
+F: abc.ABC classes can be instantiated even if abstract methods are missing.
+C: from abc import ABC, abstractmethod\nclass Retriever(ABC):\n    @abstractmethod\n    def retrieve(self, q): ...
+
+@ typing.Protocol | 4
+D: Structural typing: any object with the required methods matches, without inheriting.
+T: A class does not need to inherit from a Protocol to satisfy it for a type checker.
+F: Protocols require explicit inheritance like abstract base classes.
+C: from typing import Protocol\nclass Embeds(Protocol):\n    def embed(self, text: str) -> list[float]: ...
+
+@ @dataclass | 4
+D: Decorator that auto-generates __init__, __repr__ and __eq__ from annotated class fields.
+U: You need a lightweight container for chunk text, score and tags with minimal boilerplate.
+T: Two dataclass instances with equal field values compare equal with == by default.
+F: @dataclass requires you to write __init__ manually.
+C: from dataclasses import dataclass, field\n@dataclass\nclass Chunk:\n    text: str\n    score: float = 0.0\n    tags: list[str] = field(default_factory=list)
+
+@ field(default_factory=...) | 4
+D: Dataclass helper that builds a fresh mutable default (such as a list) for each instance.
+T: Using a bare [] as a dataclass field default raises a ValueError.
+F: Dataclasses allow tags: list = [] and share it safely.
+C: tags: list[str] = field(default_factory=list)
+B: @dataclass\nclass Chunk:\n    tags: list[str] = field(____=list) ;; default_factory ;; default ;; factory ;; init
+
+@ frozen dataclass | 4
+D: A dataclass whose instances are immutable after creation and hashable.
+T: Assigning to a field of a frozen dataclass raises FrozenInstanceError.
+F: frozen=True only affects repr output.
+C: @dataclass(frozen=True)\nclass Point:\n    x: int\n    y: int
+
+@ Generator function | 5
+D: A function that uses yield to produce a sequence of values lazily, pausing between items.
+U: You want to stream tokens one by one without holding the full response in memory.
+T: A generator is exhausted after one full iteration; iterating again yields nothing.
+F: Calling a generator function runs its whole body immediately.
+C: def stream_tokens(text):\n    for word in text.split():\n        yield word
+
+@ yield from | 5
+D: Syntax that delegates iteration to a sub-generator or iterable.
+T: yield from other() re-yields every value produced by other().
+F: yield from returns only the first value of the sub-generator.
+C: def outer():\n    yield from inner()
+
+@ StopIteration | 5
+D: Exception raised by an iterator's __next__ when there are no more items.
+T: Calling next() on an exhausted iterator without a default raises StopIteration.
+F: next() on an exhausted iterator returns None.
+C: it = iter([1])\nnext(it)   # 1\nnext(it)   # StopIteration
+
+@ itertools.batched | 5
+D: Python 3.12+ function that groups an iterable into tuples of size n (the last may be shorter).
+U: You need to send documents to an embedding API in groups of 64.
+T: list(batched("abcde", 2)) gives [('a', 'b'), ('c', 'd'), ('e',)].
+F: itertools.batched was added in Python 3.6.
+C: from itertools import batched\nfor batch in batched(texts, 64):\n    embed(batch)
+
+@ Decorator | 5
+D: A callable that takes a function and returns a replacement, applied with @ syntax.
+T: @timed above def f is equivalent to f = timed(f).
+F: Decorators run every time the decorated function is called, but never at definition time.
+C: def timed(fn):\n    @functools.wraps(fn)\n    def wrapper(*args, **kwargs):\n        return fn(*args, **kwargs)\n    return wrapper
+
+@ functools.wraps | 5
+D: Decorator helper that copies the wrapped function's name, docstring and metadata onto the wrapper.
+T: Without functools.wraps, a decorated function's __name__ becomes the wrapper's name.
+F: functools.wraps caches the wrapped function's return values.
+C: @functools.wraps(fn)\ndef wrapper(*a, **k): ...
+B: def deco(fn):\n    @functools.____(fn)\n    def wrapper(*a, **k):\n        return fn(*a, **k)\n    return wrapper ;; wraps ;; cache ;; partial ;; reduce
+
+@ functools.lru_cache | 5
+D: Decorator that memoizes function results keyed by arguments, with a bounded cache.
+U: An expensive pure function is called repeatedly with the same arguments.
+T: lru_cache requires the function's arguments to be hashable.
+F: lru_cache works with list arguments because it copies them.
+C: from functools import lru_cache\n@lru_cache(maxsize=1024)\ndef embed_cached(text): ...
+
+@ Context manager | 5
+D: An object used with the with statement whose setup and cleanup are guaranteed, even on exceptions.
+U: You must always close a tracing span or file even if an error occurs.
+T: A class becomes a context manager by implementing __enter__ and __exit__.
+F: Cleanup in a context manager is skipped if an exception occurs inside the with block.
+C: with open("data.txt") as f:\n    text = f.read()
+
+@ contextlib.contextmanager | 5
+D: Decorator that turns a generator with a single yield into a context manager.
+T: Code after the yield in a @contextmanager function runs on exit from the with block.
+F: A @contextmanager generator must yield at least twice.
+C: @contextmanager\ndef span(name):\n    print("start")\n    try:\n        yield name\n    finally:\n        print("end")
+
+@ Type hints | 6
+D: Annotations describing expected types, ignored by the interpreter but used by tools and frameworks.
+T: Python does not enforce type hints at runtime by default.
+F: Passing a str to a parameter annotated as int raises TypeError automatically.
+C: def search(query: str, k: int = 5) -> list[str]: ...
+
+@ X | None | 6
+D: Modern union syntax meaning a value may be X or None, equivalent to Optional[X].
+T: int | None is equivalent to Optional[int].
+F: int | None means the value must be both an int and None.
+C: def maybe(x: int | None = None) -> None: ...
+
+@ Literal | 6
+D: Type hint restricting a value to specific constants.
+U: A function parameter should only accept "dense", "sparse" or "hybrid".
+T: Literal["a", "b"] documents that only those exact values are valid.
+F: Literal types convert any string into an allowed value at runtime.
+C: from typing import Literal\nMode = Literal["dense", "sparse", "hybrid"]
+
+@ TypedDict | 6
+D: Type for dictionaries with a fixed set of string keys and value types, used for LangGraph state.
+T: A TypedDict value is a plain dict at runtime.
+F: TypedDict creates a class whose instances validate types on assignment.
+C: class State(TypedDict):\n    question: str\n    docs: list[str]
+
+@ Annotated | 6
+D: Type hint that attaches extra metadata to a type, used by FastAPI, Pydantic and LangGraph reducers.
+T: Annotated[list, operator.add] keeps list as the type while attaching operator.add as metadata.
+F: Annotated changes the runtime type of the variable.
+C: Score = Annotated[float, "between 0 and 1"]
+
+@ Pydantic BaseModel | 6
+D: A class that validates and converts input data based on type hints and serializes it to dicts and JSON.
+U: You need to validate an LLM's JSON output against a schema with clear errors.
+T: Pydantic v2 in lax mode converts the string "0.9" into the float 0.9 for a float field.
+F: Pydantic models never convert types; any mismatch is silently accepted.
+C: class Answer(BaseModel):\n    text: str\n    confidence: float = Field(ge=0, le=1)
+
+@ model_dump | 6
+D: Pydantic v2 method that converts a model instance into a plain dict.
+T: model_dump() replaces the Pydantic v1 method .dict().
+F: model_dump() returns a JSON string.
+C: a.model_dump()        # dict\na.model_dump_json()   # JSON string
+
+@ model_json_schema | 6
+D: Pydantic v2 class method returning the JSON Schema of a model, used for LLM structured output.
+T: Frameworks pass a model's JSON Schema to LLMs to constrain structured output.
+F: model_json_schema() validates an instance and returns errors.
+C: Answer.model_json_schema()
+
+@ field_validator | 6
+D: Pydantic v2 decorator for custom validation logic on specific fields.
+T: Raising ValueError inside a field_validator produces a ValidationError for the caller.
+F: field_validator runs only when the model is serialized.
+C: @field_validator("text")\n@classmethod\ndef not_empty(cls, v):\n    if not v.strip():\n        raise ValueError("empty")\n    return v
+
+@ ValidationError | 6
+D: Exception raised by Pydantic when input data does not satisfy the model's constraints.
+T: Field(ge=0, le=1) with value 2 raises a ValidationError.
+F: Pydantic clamps out-of-range values to the nearest bound.
+C: try:\n    Answer(text="x", confidence=2)\nexcept ValidationError as e:\n    print(e.error_count())
+
+@ pydantic-settings | 6
+D: Package providing BaseSettings, which loads configuration from environment variables and .env files.
+U: You want API keys and model names read from environment variables with validation.
+T: BaseSettings reads values from environment variables matching field names.
+F: BaseSettings is built into the Python standard library.
+C: from pydantic_settings import BaseSettings\nclass Settings(BaseSettings):\n    openai_api_key: str
+
+@ try/except/else/finally | 7
+D: Exception-handling statement where one block runs only without exceptions and another always runs.
+T: The else block of a try statement runs only if no exception was raised in try.
+F: The finally block runs only when an exception occurs.
+C: try:\n    v = int("42")\nexcept ValueError:\n    ...\nelse:\n    print("ok")\nfinally:\n    print("always")
+
+@ Exception chaining | 7
+D: Raising a new exception while recording the original cause with raise ... from ...
+T: raise RuntimeError("x") from e stores e as the new exception's __cause__.
+F: raise ... from ... discards the original exception completely.
+C: except KeyError as e:\n    raise LookupError("missing config") from e
+
+@ Bare except | 7
+D: An except clause without an exception type, which also catches KeyboardInterrupt and SystemExit.
+T: A bare except: can swallow KeyboardInterrupt.
+F: A bare except: only catches ValueError and TypeError.
+C: try:\n    risky()\nexcept Exception as e:   # better than bare except\n    log.exception(e)
+
+@ ExceptionGroup and except* | 7
+D: Python 3.11 features for raising and handling several unrelated exceptions at once.
+T: asyncio.TaskGroup can raise an ExceptionGroup when several tasks fail.
+F: except* was introduced in Python 2.7.
+C: try:\n    ...\nexcept* ValueError as eg:\n    ...
+
+@ Exponential backoff | 7
+D: Retry strategy where the wait doubles after each failure, often with random jitter.
+U: Your LLM provider returns HTTP 429 rate-limit errors under load.
+T: Adding random jitter to backoff delays avoids many clients retrying at the same instant.
+F: Exponential backoff waits the same fixed time between every retry.
+C: time.sleep(base * 2 ** attempt + random.random() * 0.1)
+
+@ logging levels | 7
+D: Severity hierarchy DEBUG < INFO < WARNING < ERROR < CRITICAL used by the logging module.
+T: The root logger's default level is WARNING.
+F: By default, logging prints DEBUG messages.
+C: logging.basicConfig(level=logging.INFO)\nlog = logging.getLogger(__name__)
+
+@ log.exception | 7
+D: Logging call that records a message at ERROR level together with the current traceback.
+T: log.exception() is meant to be called inside an except block.
+F: log.exception() raises the current exception again.
+C: try:\n    ...\nexcept Exception:\n    log.exception("failed")
+
+@ pathlib.Path | 7
+D: Object-oriented filesystem path API supporting the / operator for joining.
+T: Path("data") / "docs.jsonl" builds a path by joining segments.
+F: pathlib paths cannot be used with open().
+C: p = Path("data") / "docs.jsonl"\np.parent.mkdir(parents=True, exist_ok=True)
+
+@ JSON Lines | 7
+D: File format with one JSON object per line, popular for datasets and logs.
+U: You are storing an evaluation dataset that will be appended to row by row.
+T: Each line of a JSONL file is independently parseable with json.loads.
+F: A JSONL file must contain a single top-level JSON array.
+C: with open("data.jsonl", "w") as f:\n    f.write(json.dumps(row) + "\n")
+
+@ json.dumps vs json.dump | 7
+D: One serializes to a string; the other writes directly to a file object.
+T: json.loads parses a string, while json.load reads from a file object.
+F: json.dumps writes JSON directly into an open file.
+C: s = json.dumps({"a": 1})\njson.dump({"a": 1}, f)
+
+@ Coroutine | 8
+D: The object returned by calling an async def function; it does nothing until awaited or scheduled.
+T: Calling an async def function without awaiting it does not run its body.
+F: Calling an async def function immediately runs it to completion.
+C: async def call_llm(p):\n    ...\ncoro = call_llm("hi")   # not running yet
+
+@ asyncio.gather | 8
+D: Runs awaitables concurrently and returns their results in the same order as the inputs.
+U: You need three independent LLM calls to run concurrently and keep results aligned with inputs.
+T: asyncio.gather returns results in the order the awaitables were passed, not completion order.
+F: asyncio.gather returns results sorted by which finished first.
+C: results = await asyncio.gather(call_llm("a"), call_llm("b"))
+B: results = await asyncio.____(fetch(a), fetch(b), fetch(c)) ;; gather ;; sleep ;; run ;; wait_for
+
+@ asyncio.run | 8
+D: Entry point that creates an event loop, runs a coroutine to completion and closes the loop.
+T: asyncio.run(main()) is the standard way to start an async program from synchronous code.
+F: asyncio.run can be called from inside an already running event loop.
+C: asyncio.run(main())
+
+@ asyncio.TaskGroup | 8
+D: Python 3.11 structured-concurrency context manager that cancels remaining tasks if one fails.
+T: Leaving an async with TaskGroup block waits for all its tasks to finish.
+F: TaskGroup lets failing tasks be silently ignored.
+C: async with asyncio.TaskGroup() as tg:\n    t1 = tg.create_task(fetch(a))
+
+@ asyncio.Semaphore | 8
+D: Concurrency primitive limiting how many coroutines enter a section at once.
+U: You must keep at most five concurrent requests to an embedding API.
+T: async with sem: blocks when the semaphore's counter has reached zero.
+F: A semaphore speeds up CPU-bound work by using more cores.
+C: sem = asyncio.Semaphore(5)\nasync with sem:\n    await call_llm(p)
+
+@ asyncio.to_thread | 8
+D: Runs a blocking function in a worker thread so it does not block the event loop.
+U: You must call a synchronous database driver from inside an async FastAPI endpoint.
+T: time.sleep inside async def blocks every task on the event loop.
+F: Blocking calls inside async def only pause the current coroutine, never the others.
+C: result = await asyncio.to_thread(blocking_query, sql)
+
+@ GIL | 8
+D: The global interpreter lock that lets only one thread execute Python bytecode at a time in standard CPython builds.
+T: CPU-bound work benefits more from multiprocessing than from threads in standard CPython.
+F: The GIL prevents asyncio from handling many concurrent network requests.
+C: from concurrent.futures import ProcessPoolExecutor
+
+@ Free-threaded Python | 8
+D: A CPython build without the GIL, experimental in 3.13 and officially supported in 3.14 (PEP 779).
+T: Python 3.14 made the free-threaded build officially supported.
+F: Free-threaded Python became the only CPython build in 3.13.
+C: python3.14t script.py   # free-threaded interpreter
+
+@ Async generator | 8
+D: An async def function containing yield, consumed with async for — used for streaming tokens.
+T: Async generators are iterated with async for.
+F: Async generators are consumed with a regular for loop.
+C: async def stream():\n    yield "tok"\nasync for t in stream():\n    print(t)
+
+@ Virtual environment | 9
+D: An isolated directory containing its own Python interpreter and installed packages for one project.
+U: Two projects need different versions of langchain on the same machine.
+T: python -m venv .venv creates a virtual environment.
+F: Virtual environments share installed packages with every other environment by default.
+C: python -m venv .venv\nsource .venv/bin/activate
+
+@ uv | 9
+D: A fast Rust-based Python package and project manager that creates environments and lock files.
+T: uv lock writes a uv.lock file with exact pinned versions.
+F: uv is a linter that only formats code.
+C: uv init rag-app\nuv add langgraph fastapi\nuv run python main.py
+
+@ pyproject.toml | 9
+D: The standard project configuration file declaring metadata, dependencies and tool settings (PEP 621).
+T: Project dependencies can be declared in pyproject.toml.
+F: pyproject.toml is a lock file containing package hashes.
+C: [project]\nname = "rag-app"\ndependencies = ["fastapi", "langgraph"]
+
+@ __name__ == "__main__" | 9
+D: Guard that runs code only when a file is executed directly rather than imported.
+T: When a module is imported, its __name__ is the module's name, not "__main__".
+F: Code under if __name__ == "__main__": runs whenever the module is imported.
+C: if __name__ == "__main__":\n    main()
+
+@ pytest fixture | 9
+D: A reusable function providing test dependencies, injected into tests by parameter name.
+U: Many tests need the same fake LLM object.
+T: A pytest test receives a fixture by declaring a parameter with the fixture's name.
+F: Fixtures must be called explicitly inside each test.
+C: @pytest.fixture\ndef fake_llm():\n    return lambda p: "stub"\ndef test_answer(fake_llm):\n    assert fake_llm("q") == "stub"
+
+@ pytest.mark.parametrize | 9
+D: Decorator that runs one test function with several sets of arguments.
+T: parametrize with three values generates three test cases.
+F: parametrize runs the test once with all values passed as a list.
+C: @pytest.mark.parametrize("size", [1, 2, 3])\ndef test_no_loss(size): ...
+
+@ unittest.mock.patch | 9
+D: Temporarily replaces an object (such as an LLM client) with a mock during a test.
+T: Mocking the LLM in unit tests makes them deterministic and free.
+F: patch permanently replaces the object for the whole test session.
+C: with patch("app.llm.invoke", return_value="ok"):\n    ...
+
+@ ruff | 9
+D: An extremely fast Python linter and formatter written in Rust.
+T: ruff can both lint and format Python code.
+F: ruff is a static type checker that replaces mypy.
+C: ruff check . --fix\nruff format .
+
+@ Type parameter syntax | 10
+D: Python 3.12 syntax for generics written directly in def and class headers, like def f[T](x: T) -> T.
+T: def first[T](items: list[T]) -> T is valid Python 3.12+ syntax.
+F: Generic syntax def f[T] has been available since Python 3.5.
+C: def top_k[T](items: list[T], k: int) -> list[T]:\n    return items[:k]
+
+@ type statement | 10
+D: Python 3.12 statement for declaring type aliases, such as type Vector = list[float].
+T: type Vector = list[float] declares a type alias in Python 3.12+.
+F: The type statement creates a new runtime class with validation.
+C: type Vector = list[float]
+
+@ t-strings | 10
+D: Python 3.14 template string literals (PEP 750) that evaluate to a Template object instead of a str.
+U: A library wants to escape interpolated values safely before building SQL or HTML.
+T: t"Hello {name}" evaluates to a string.templatelib.Template, not a str.
+F: t-strings are just an alias for f-strings and return str.
+C: from string.templatelib import Template\ntpl = t"Hello {name}"\nisinstance(tpl, Template)   # True
+
+@ Deferred annotations | 10
+D: Python 3.14 behaviour (PEP 649/749) where annotations are evaluated lazily, so forward references need no quotes.
+T: In Python 3.14, annotations are no longer evaluated eagerly at definition time.
+F: Python 3.14 removed type annotations from functions.
+C: from annotationlib import get_annotations, Format
+
+@ concurrent.interpreters | 10
+D: Python 3.14 standard-library module (PEP 734) for running multiple isolated interpreters in one process.
+T: Python 3.14 exposes multiple interpreters in the standard library.
+F: Multiple interpreters share all objects freely like threads.
+C: from concurrent import interpreters
+
+@ compression.zstd | 10
+D: Python 3.14 standard-library module providing Zstandard compression.
+T: Python 3.14 added Zstandard support in the standard library.
+F: Zstandard support was removed from Python 3.14.
+C: from compression import zstd
+
+% built-in mutable type | 1 | list; dict; set; bytearray | built-in immutable type
+% built-in immutable type | 1 | int; float; str; tuple; frozenset; bytes; bool | built-in mutable type
+% falsy value | 1 | 0; 0.0; "" (empty string); [] (empty list); {} (empty dict); None; set() | truthy value
+% truthy value | 1 | 1; "False" (non-empty string); [0]; {"a": 0}; -1; " " (a space) | falsy value
+% Python 3.14 feature | 10 | t-strings (PEP 750); deferred evaluation of annotations (PEP 649); official free-threading support (PEP 779); concurrent.interpreters (PEP 734); compression.zstd module | Python 3.11 feature, Python 3.12 feature, Python 3.10 feature
+% Python 3.11 feature | 10 | ExceptionGroup and except*; asyncio.TaskGroup; tomllib module; Faster CPython speedups | Python 3.14 feature, Python 3.12 feature, Python 3.10 feature
+% Python 3.12 feature | 10 | type parameter syntax def f[T]; type alias statement; itertools.batched; more flexible f-string parsing | Python 3.14 feature, Python 3.11 feature, Python 3.10 feature
+% Python 3.10 feature | 10 | match/case pattern matching; PEP 604 union syntax (X or Y written with a pipe); parenthesized context managers | Python 3.14 feature, Python 3.11 feature, Python 3.12 feature
+% collections module class | 3 | Counter; defaultdict; deque; OrderedDict; namedtuple; ChainMap
+% functools helper | 5 | lru_cache; cache; partial; reduce; wraps; cached_property
+% itertools function | 5 | islice; chain; batched; groupby; product; permutations; accumulate
+% asyncio primitive | 8 | gather; create_task; TaskGroup; Semaphore; wait_for; to_thread; Queue
+% Python code-quality or test tool | 9 | pytest; ruff; mypy; pyright; pre-commit; coverage.py
+
+> Steps to create and use a virtual environment | 9 | python -m venv .venv ; source .venv/bin/activate ; pip install -r requirements.txt ; python main.py
+> Order of name lookup in Python (LEGB) | 2 | Local scope ; Enclosing function scope ; Global (module) scope ; Built-in scope
+> Order in which try-statement blocks run when no exception occurs | 7 | try block ; else block ; finally block ; code after the try statement
+> Python logging levels from least to most severe | 7 | DEBUG ; INFO ; WARNING ; ERROR ; CRITICAL

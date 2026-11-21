@@ -1,0 +1,390 @@
+# RAGAS. Lessons: 1 why evaluate, 2 faithfulness, 3 relevancy/precision/recall, 4 more metrics, 5 data structures, 6 v0.4 API, 7 testset generation, 8 custom metrics/integrations
+@ Ragas | 1
+D: An open-source library for evaluating LLM applications — originally RAG, now also agents — with metrics, test generation and experiments.
+T: Ragas stands for Retrieval Augmented Generation Assessment.
+F: Ragas is a vector database.
+C: pip install ragas
+
+@ Retrieval vs generation failures | 1
+D: RAG can fail because the retriever finds the wrong context or because the generator misuses good context.
+T: Context recall diagnoses retrieval, while faithfulness diagnoses generation.
+F: All RAG failures come from the LLM, never from retrieval.
+C: # low context recall -> fix retrieval; low faithfulness -> fix generation
+
+@ BLEU and ROUGE limitations | 1
+D: N-gram overlap metrics that penalize correct paraphrases and can reward fluent wrong answers.
+T: A correct paraphrase can get a low ROUGE score.
+F: BLEU reliably detects hallucinations.
+C: # "Paris is France's capital" vs "The capital of France is Paris"
+
+@ LLM-as-a-judge | 1
+D: Using an LLM to score specific, well-defined properties of outputs at scale.
+T: Many Ragas metrics use an LLM to extract and verify claims.
+F: LLM-as-a-judge metrics never make API calls.
+C: llm = llm_factory("gpt-5.4-mini", client=AsyncOpenAI())
+
+@ CI quality gate | 1
+D: Failing a build when evaluation scores drop below thresholds such as faithfulness ≥ 0.8.
+U: You want to block prompt changes that cause hallucinations from being merged.
+T: A small eval set can run on every pull request.
+F: Quality gates should only run once a year.
+C: assert mean_faithfulness >= 0.8, "faithfulness regression"
+
+@ Faithfulness | 2
+D: The fraction of claims in the response that are supported by the retrieved context.
+U: You need to measure how often your RAG app hallucinates beyond its sources.
+T: Faithfulness = supported claims / total claims in the response.
+F: Faithfulness compares the response with the ground-truth reference answer.
+C: Faithfulness(llm=llm).ascore(user_input=q, response=a, retrieved_contexts=ctx)
+
+@ Claim extraction | 2
+D: Breaking a response or reference into individual factual statements for verification.
+T: Faithfulness first splits the response into claims.
+F: Claim extraction counts the number of words in the answer.
+C: # "Einstein was born in Germany on 20 March 1879" -> 2 claims
+
+@ Faithful but wrong | 2
+D: An answer fully supported by retrieved context that is still incorrect because the context was wrong.
+T: Faithfulness measures grounding, not real-world truth.
+F: A faithfulness score of 1.0 guarantees the answer is factually correct.
+C: # wrong context + grounded answer = faithful but incorrect
+
+@ HHEM faithfulness | 2
+D: A faithfulness variant using Vectara's hallucination evaluation classifier instead of an LLM judge.
+T: HHEM-based scoring can be cheaper than LLM-judged faithfulness.
+F: HHEM is an embedding model for retrieval.
+C: # FaithfulnesswithHHEM
+
+@ Answer relevancy | 3
+D: The mean cosine similarity between the user question and N questions generated from the response.
+U: Answers are factually fine but often drift off-topic or are incomplete.
+T: Answer relevancy needs an LLM and an embedding model.
+F: Answer relevancy measures factual correctness against a reference.
+C: AnswerRelevancy(llm=llm, embeddings=emb).ascore(user_input=q, response=a)
+
+@ Generated questions (strictness) | 3
+D: The number of questions (default 3) the judge generates from the response for answer relevancy.
+T: Answer relevancy averages over several generated questions.
+F: Answer relevancy generates exactly one question with no averaging.
+C: # strictness / N = 3
+
+@ Context precision | 3
+D: Whether relevant retrieved chunks are ranked near the top: Σ(precision@k × v_k) / relevant chunks in top K.
+U: Relevant chunks are retrieved but often buried under irrelevant ones.
+T: Context precision rewards ranking relevant chunks earlier.
+F: Context precision ignores the order of retrieved chunks.
+C: ContextPrecision(llm=llm).ascore(user_input=q, reference=ref, retrieved_contexts=ctx)
+
+@ Context recall | 3
+D: The fraction of claims in the reference answer that are supported by the retrieved context.
+U: Answers miss key facts and you suspect retrieval isn't finding them.
+T: Context recall requires a reference answer.
+F: Context recall can be computed without any reference.
+C: ContextRecall(llm=llm).ascore(user_input=q, retrieved_contexts=ctx, reference=ref)
+
+@ Context precision with reference | 3
+D: Context precision where chunk relevance is judged against a reference answer.
+T: ContextPrecisionWithReference needs the reference field.
+F: ContextPrecisionWithReference ignores the reference.
+C: ContextPrecisionWithReference(llm=llm)
+
+@ Context utilization | 3
+D: Context precision judged against the response instead of a reference (context precision without reference).
+T: Context utilization can run without ground truth.
+F: Context utilization requires human labels.
+C: ContextUtilization(llm=llm)
+
+@ Metric diagnosis table | 3
+D: Mapping low metrics to causes: faithfulness → hallucination, relevancy → drift, precision → noisy ranking, recall → missing info.
+T: Low context precision suggests adding a reranker.
+F: Low context recall means the generator hallucinates.
+C: # recall low -> chunking, k, hybrid search; precision low -> rerank
+
+@ Context entities recall | 4
+D: The fraction of entities in the reference that also appear in the retrieved context.
+U: Your domain depends on exact entities like drug names and dates.
+T: Context entities recall = |entities(context) ∩ entities(reference)| / |entities(reference)|.
+F: Context entities recall counts entities in the response only.
+C: ContextEntityRecall(llm=llm)
+
+@ Noise sensitivity | 4
+D: How often the system makes incorrect claims because of irrelevant retrieved context; lower is better.
+T: For noise sensitivity, a lower score is better.
+F: For noise sensitivity, higher scores are better.
+C: NoiseSensitivity(llm=llm)
+
+@ Factual correctness | 4
+D: Claim-level precision, recall or F1 between the response and the reference answer.
+T: Factual correctness can be reported as F1.
+F: Factual correctness compares the response with the retrieved context only.
+C: FactualCorrectness(llm=llm, mode="f1")
+
+@ Semantic similarity | 4
+D: Cosine similarity between embeddings of the response and the reference answer.
+T: Semantic similarity needs an embedding model but no LLM judge.
+F: Semantic similarity uses BLEU n-grams.
+C: SemanticSimilarity(embeddings=emb)
+
+@ Answer correctness (legacy) | 4
+D: A legacy weighted combination of factual similarity and semantic similarity to the reference.
+T: Answer correctness blends factual and semantic similarity.
+F: Answer correctness ignores the reference.
+C: # weights e.g. [0.75 factual, 0.25 semantic]
+
+@ NVIDIA metrics | 4
+D: Ragas metrics such as Answer Accuracy, Context Relevance and Response Groundedness that use LLM-judged ratings.
+T: Response groundedness is one of the NVIDIA-style metrics in Ragas.
+F: NVIDIA metrics require a GPU to compute.
+C: from ragas.metrics.collections import AnswerAccuracy, ContextRelevance, ResponseGroundedness
+
+@ Non-LLM metrics | 4
+D: Deterministic metrics like BLEU, ROUGE, chrF, exact match, string presence and string similarity.
+T: Non-LLM metrics are cheap and reproducible.
+F: Non-LLM metrics require an LLM call per sample.
+C: ExactMatch(); RougeScore(); BleuScore()
+
+@ Tool call accuracy | 4
+D: Agent metric checking whether the expected tools were called with the expected arguments (and order).
+U: You need to verify your agent calls get_weather before book_trip.
+T: Tool call accuracy compares actual tool calls with reference_tool_calls.
+F: Tool call accuracy measures response fluency.
+C: ToolCallAccuracy()
+
+@ Agent goal accuracy | 4
+D: Agent metric judging whether the agent achieved the user's goal, with or without a reference.
+T: Agent goal accuracy has with-reference and without-reference variants.
+F: Agent goal accuracy counts tokens.
+C: AgentGoalAccuracyWithReference(llm=llm)
+
+@ Topic adherence | 4
+D: Agent metric checking whether the conversation stays within allowed topics.
+U: A banking bot must not discuss medical advice.
+T: Topic adherence evaluates staying within reference topics.
+F: Topic adherence checks code syntax.
+C: TopicAdherence(llm=llm)
+
+@ user_input | 5
+D: The Ragas field holding the user's question or query.
+T: user_input replaced the old field name question.
+F: user_input holds the retrieved chunks.
+C: SingleTurnSample(user_input="What is the refund window?", ...)
+
+@ retrieved_contexts | 5
+D: The Ragas field holding the list of retrieved chunk strings.
+T: retrieved_contexts replaced the old field name contexts.
+F: retrieved_contexts is a single string, not a list.
+C: retrieved_contexts=["Refunds are accepted within 30 days."]
+
+@ response | 5
+D: The Ragas field holding the system's generated answer.
+T: response replaced the old field name answer.
+F: response holds the ground-truth answer.
+C: response="You can request a refund within 30 days."
+
+@ reference | 5
+D: The Ragas field holding the ground-truth answer.
+T: reference replaced the old field name ground_truth.
+F: reference holds the model's answer.
+C: reference="30 days from delivery."
+
+@ reference_contexts | 5
+D: The Ragas field holding the ground-truth relevant contexts for a question.
+T: Synthetic test generation produces reference_contexts.
+F: reference_contexts are the chunks your retriever returned.
+C: reference_contexts=["Refunds are accepted within 30 days of delivery."]
+
+@ SingleTurnSample | 5
+D: Ragas data structure for one question-answer interaction with contexts and optional reference.
+T: SingleTurnSample is used for standard RAG evaluation.
+F: SingleTurnSample stores multi-turn tool conversations.
+C: SingleTurnSample(user_input=q, retrieved_contexts=ctx, response=a, reference=ref)
+B: sample = ____(user_input=q, retrieved_contexts=ctx, response=answer) ;; SingleTurnSample ;; MultiTurnSample ;; EvalRow ;; TestCase
+
+@ MultiTurnSample | 5
+D: Ragas data structure holding a list of messages (human, AI with tool calls, tool) for agents and chatbots.
+U: You need to evaluate an agent's tool calls across a conversation.
+T: MultiTurnSample can include reference_tool_calls.
+F: MultiTurnSample can only hold one message.
+C: MultiTurnSample(user_input=[HumanMessage(...), AIMessage(..., tool_calls=[...]), ToolMessage(...)])
+
+@ EvaluationDataset | 5
+D: A collection of samples used for evaluation, convertible to pandas.
+T: EvaluationDataset(samples=[...]).to_pandas() gives a DataFrame.
+F: EvaluationDataset only accepts CSV paths.
+C: dataset = EvaluationDataset(samples=[sample])
+
+@ Reference-free metrics | 5
+D: Metrics like faithfulness and answer relevancy that need no ground-truth answer.
+T: Reference-free metrics can monitor production traffic.
+F: Faithfulness requires a reference answer.
+C: # faithfulness: user_input + response + retrieved_contexts
+
+@ Legacy field names | 5
+D: The v0.1 names question, contexts, answer and ground_truth replaced by user_input, retrieved_contexts, response and reference.
+T: Older tutorials use question/contexts/answer/ground_truth.
+F: Current Ragas still requires the field name ground_truth.
+C: # question -> user_input, contexts -> retrieved_contexts, answer -> response, ground_truth -> reference
+
+@ ragas.metrics.collections | 6
+D: The module holding the modern collection metrics that became the default in Ragas v0.4.
+T: Importing legacy metrics from ragas.metrics shows a deprecation warning in v0.4.
+F: ragas.metrics.collections was removed in v0.4.
+C: from ragas.metrics.collections import Faithfulness, AnswerRelevancy, ContextPrecision, ContextRecall
+
+@ llm_factory | 6
+D: Ragas helper that creates a judge LLM wrapper from a model name and client.
+T: llm_factory("gpt-5.4-mini", client=AsyncOpenAI()) creates a judge LLM.
+F: llm_factory trains a new LLM.
+C: from ragas.llms import llm_factory\nllm = llm_factory("gpt-5.4-mini", client=AsyncOpenAI())
+B: from ragas.llms import ____\nllm = ____("gpt-5.4-mini", client=AsyncOpenAI()) ;; llm_factory ;; LLMWrapper ;; make_llm ;; get_llm
+
+@ ascore | 6
+D: Async metric method that scores one sample and returns a MetricResult with value (and optional reason).
+T: await metric.ascore(...) returns an object whose .value is the score.
+F: ascore returns a plain string explanation only.
+C: result = await faith.ascore(user_input=q, response=a, retrieved_contexts=ctx)\nresult.value
+
+@ @experiment decorator | 6
+D: Ragas v0.4 decorator that turns an async function into a tracked experiment run over a Dataset.
+U: You want to compare "dense only" vs "hybrid + rerank" retrievers on the same test set.
+T: v0.4 moved from evaluate() to an experiment-based workflow.
+F: @experiment deletes previous results each run.
+C: @experiment()\nasync def run(row):\n    ...\nresults = await run.arun(dataset)
+
+@ Ragas Dataset | 6
+D: A named dataset with a storage backend (e.g. local CSV) that rows can be appended to and saved.
+T: Dataset(name=..., backend="local/csv", root_dir="./evals") stores rows as CSV.
+F: Ragas Dataset can only live in memory.
+C: dataset = Dataset(name="faq_eval", backend="local/csv", root_dir="./evals")\ndataset.append({"question": "...", "reference": "..."})\ndataset.save()
+
+@ evaluate() (legacy) | 6
+D: The older Ragas function that scores a dataset with a list of metrics and returns results.
+T: evaluate() is still common in older tutorials but deprecated in v0.4.
+F: evaluate() was introduced in v0.4 as the new default.
+C: result = evaluate(dataset=eval_dataset, metrics=[...])\nresult.to_pandas()
+
+@ Ragas version history | 6
+D: v0.2 introduced SingleTurnSample/EvaluationDataset; v0.3.9 introduced collections; v0.4 made collections and experiments the default.
+T: v0.2 replaced dictionary datasets with SingleTurnSample and EvaluationDataset.
+F: v0.4 brought back dictionary datasets as the only option.
+C: # v0.1 dicts -> v0.2 samples -> v0.4 collections + experiments
+
+@ TestsetGenerator | 7
+D: Ragas class that builds a knowledge graph of your documents and synthesizes evaluation questions with references.
+U: You have 500 documents and no labelled questions.
+T: TestsetGenerator outputs user_input, reference and reference_contexts.
+F: TestsetGenerator requires hand-written questions as input.
+C: generator = TestsetGenerator(llm=llm, embedding_model=emb)\ntestset = generator.generate_with_langchain_docs(docs, testset_size=50)
+
+@ Knowledge graph transforms | 7
+D: Steps that enrich document nodes with headlines, summaries, entities, keyphrases and embeddings, and link related nodes.
+T: Test generation builds a knowledge graph before synthesizing questions.
+F: Test generation never looks at document content.
+C: # headlines, summaries, entities, keyphrases, embeddings -> relationships
+
+@ Personas | 7
+D: Profiles of who asks questions, used to diversify synthetic queries.
+T: Personas make generated questions more realistic and varied.
+F: Personas are evaluation metrics.
+C: Persona(name="new employee", role_description="asks about onboarding and benefits")
+
+@ SingleHopSpecificQuerySynthesizer | 7
+D: Synthesizer creating questions answerable from one chunk about specific facts.
+T: Single-hop questions need only one chunk.
+F: Single-hop questions require combining several documents.
+C: from ragas.testset.synthesizers import SingleHopSpecificQuerySynthesizer
+
+@ MultiHopAbstractQuerySynthesizer | 7
+D: Synthesizer creating questions that need several chunks and abstract reasoning.
+T: Multi-hop abstract questions combine information from multiple chunks.
+F: Multi-hop abstract questions are answerable from a single sentence.
+C: from ragas.testset.synthesizers import MultiHopAbstractQuerySynthesizer
+
+@ MultiHopSpecificQuerySynthesizer | 7
+D: Synthesizer creating multi-chunk questions about specific facts.
+T: Multi-hop specific questions target concrete facts spread across chunks.
+F: Multi-hop specific questions never need more than one chunk.
+C: from ragas.testset.synthesizers import MultiHopSpecificQuerySynthesizer
+
+@ Reviewing synthetic data | 7
+D: Manually checking generated questions and removing ambiguous or unrealistic ones.
+T: Synthetic test sets should be reviewed and mixed with real user questions.
+F: Synthetic questions never need review.
+C: testset.to_pandas().sample(20)
+
+@ Fixed versioned test set | 7
+D: Keeping the evaluation set constant and versioned so runs are comparable over time.
+T: Changing the test set between runs makes score comparisons misleading.
+F: You should regenerate the test set for every experiment.
+C: dataset = Dataset.load(name="faq_eval_v3", backend="local/csv", root_dir="./evals")
+
+@ AspectCritic | 8
+D: A custom Ragas metric that gives a binary verdict on a natural-language aspect definition.
+U: You want to check "Is the response concise?" for every answer.
+T: AspectCritic returns 1 or 0.
+F: AspectCritic returns a score from 1 to 10.
+C: AspectCritic(name="conciseness", definition="Is the response concise?", llm=llm)
+
+@ RubricsScore | 8
+D: A custom metric scoring responses against described rubric levels, e.g. 1–5.
+T: RubricsScore uses score descriptions for each level.
+F: RubricsScore only outputs true/false.
+C: RubricsScore(rubrics={"score1_description": "Incorrect", "score5_description": "Fully correct"}, llm=llm)
+
+@ DiscreteMetric | 8
+D: Newer Ragas custom metric type that outputs one label from allowed values like pass/fail.
+T: DiscreteMetric outputs a label from a fixed set of allowed values.
+F: DiscreteMetric outputs unbounded floats.
+C: from ragas.metrics import DiscreteMetric
+
+@ NumericMetric | 8
+D: Newer Ragas custom metric type that outputs a number within a range.
+T: NumericMetric is suited to scores like 0–1 or 1–5.
+F: NumericMetric outputs text labels only.
+C: from ragas.metrics import NumericMetric
+
+@ Judge alignment | 8
+D: Measuring agreement between an LLM judge and human labels on a sample before trusting it.
+T: Judges should be calibrated against human labels.
+F: LLM judges never disagree with humans.
+C: agreement = (judge_labels == human_labels).mean()
+
+@ Judge biases | 8
+D: Systematic errors of LLM judges such as position bias, verbosity bias and self-preference.
+T: LLM judges may prefer longer answers (verbosity bias).
+F: LLM judges have no biases.
+C: # randomize option order; use specific criteria
+
+@ Judge cost | 8
+D: The LLM calls each metric makes per sample, which multiply with dataset size.
+T: Several Ragas metrics make multiple LLM calls per sample.
+F: Ragas metrics are always free to compute.
+C: # 6 samples × 4 metrics -> dozens of judge calls
+
+@ Langfuse/LangSmith integration | 8
+D: Pushing Ragas scores onto traces in tracing platforms to monitor quality over time.
+T: Ragas scores can be attached to Langfuse traces as scores.
+F: Ragas cannot export scores anywhere.
+C: langfuse.create_score(trace_id=tid, name="faithfulness", value=score.value)
+
+@ Per-sample analysis | 8
+D: Inspecting individual failing samples rather than only average scores.
+T: Averages can hide a cluster of severe failures.
+F: Looking at the mean is always enough.
+C: df[df.faithfulness < 0.5].head()
+
+% Ragas retrieval metric | 3 | context precision; context recall; context entities recall; context relevance | Ragas generation metric
+% Ragas generation metric | 2 | faithfulness; answer relevancy; factual correctness; response groundedness; noise sensitivity | Ragas retrieval metric
+% Ragas agent metric | 4 | tool call accuracy; tool call F1; agent goal accuracy; topic adherence | Ragas non-LLM metric
+% Ragas non-LLM metric | 4 | BLEU score; ROUGE score; chrF score; exact match; string presence | Ragas agent metric
+% current Ragas sample field | 5 | user_input; retrieved_contexts; response; reference; reference_contexts | legacy Ragas v0.1 field
+% legacy Ragas v0.1 field | 5 | question; contexts; answer; ground_truth | current Ragas sample field
+% Ragas test query synthesizer | 7 | SingleHopSpecificQuerySynthesizer; MultiHopAbstractQuerySynthesizer; MultiHopSpecificQuerySynthesizer
+% Ragas custom metric class | 8 | AspectCritic; RubricsScore; DiscreteMetric; NumericMetric
+% reference-free Ragas metric | 5 | faithfulness; answer relevancy; context utilization | reference-based Ragas metric
+% reference-based Ragas metric | 5 | context recall; factual correctness; semantic similarity; context precision with reference | reference-free Ragas metric
+% LLM judge bias | 8 | position bias; verbosity bias; self-preference bias
+
+> How Ragas computes faithfulness | 2 | split the response into claims ; check each claim against the retrieved context ; count supported claims ; divide by the total number of claims
+> How Ragas computes answer relevancy | 3 | generate N questions from the response ; embed the generated questions and the user input ; compute cosine similarity for each ; average the similarities
+> Evaluation workflow with Ragas | 1 | build a representative test set ; choose metrics for each failure mode ; run an experiment for each app version ; inspect failing samples ; add a CI quality gate

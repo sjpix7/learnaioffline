@@ -1,0 +1,535 @@
+# LLM Models. Lessons: 1 transformer, 2 tokens, 3 training, 4 decoding, 5 context/KV cache, 6 landscape, 7 reasoning/MoE, 8 quantization/serving, 9 prompting/fine-tuning
+@ Transformer | 1
+D: The neural architecture based on self-attention, introduced in "Attention Is All You Need" (2017), behind modern LLMs.
+T: Most modern LLMs are decoder-only Transformers.
+F: Transformers process text strictly one character at a time with recurrence.
+C: # Vaswani et al., 2017
+
+@ Self-attention | 1
+D: The mechanism letting each token mix information from other tokens weighted by learned relevance.
+T: Attention weights are computed from queries and keys and applied to values.
+F: Self-attention ignores the other tokens in the sequence.
+C: Attention(Q, K, V) = softmax(Q @ K.T / sqrt(d_k)) @ V
+
+@ Scaling by sqrt(d_k) | 1
+D: Dividing attention logits by the square root of the key dimension to keep softmax inputs well-scaled.
+T: Scaling prevents attention logits from growing too large.
+F: The scaling factor is the vocabulary size.
+C: scores = Q @ K.T / math.sqrt(d_k)
+
+@ Causal mask | 1
+D: A mask preventing each position from attending to future tokens in decoder models.
+T: The causal mask enables next-token prediction training.
+F: The causal mask lets tokens attend to future tokens.
+C: mask = torch.triu(torch.ones(n, n), diagonal=1).bool()
+
+@ Multi-head attention | 1
+D: Running several attention heads in parallel so the model can learn different relationships.
+T: Each head has its own query, key and value projections.
+F: Multi-head attention uses a single shared attention pattern.
+C: # h heads, each of size d_model / h
+
+@ RoPE | 1
+D: Rotary positional embeddings that encode position by rotating query and key vectors.
+T: RoPE is used by many modern LLMs such as Llama and Qwen.
+F: RoPE is a tokenization algorithm.
+C: # rotate q, k by angle θ·position
+
+@ Quadratic attention cost | 1
+D: Standard attention computes n² scores for a sequence of n tokens.
+T: Doubling sequence length roughly quadruples the attention score matrix.
+F: Attention cost grows linearly with sequence length.
+C: # n = 8,000 tokens -> 64 million attention scores per head per layer
+
+@ Grouped-Query Attention | 1
+D: Sharing each key/value head among several query heads to shrink the KV cache.
+T: GQA reduces KV cache memory compared with full multi-head attention.
+F: GQA increases the number of KV heads.
+C: # 32 query heads, 8 KV heads
+
+@ FlashAttention | 1
+D: An exact attention algorithm that reduces memory reads/writes for faster training and inference.
+T: FlashAttention computes exact attention, not an approximation.
+F: FlashAttention approximates attention with random features.
+C: # fused, tiled attention kernel
+
+@ Encoder-only model | 1
+D: Transformer like BERT that reads the whole input bidirectionally, used for classification and embeddings.
+T: BERT is an encoder-only model.
+F: BERT is a decoder-only chat model.
+C: AutoModel.from_pretrained("bert-base-uncased")
+
+@ Encoder-decoder model | 1
+D: Transformer like T5 or BART with an encoder for input and a decoder for output, common for translation.
+T: T5 is an encoder-decoder model.
+F: T5 is an encoder-only model.
+C: AutoModelForSeq2SeqLM.from_pretrained("t5-small")
+
+@ Token | 2
+D: A sub-word unit from a fixed vocabulary that models read and generate.
+T: In English, one token is roughly four characters on average.
+F: One token always equals one word.
+C: enc.encode("Tokenization matters!")
+
+@ Byte-Pair Encoding | 2
+D: A tokenization algorithm that repeatedly merges the most frequent adjacent symbol pair into a new token.
+T: GPT models use byte-level BPE tokenizers.
+F: BPE splits text only at spaces.
+C: tiktoken.get_encoding("o200k_base")
+
+@ WordPiece | 2
+D: The sub-word tokenization algorithm used by BERT.
+T: BERT uses WordPiece tokenization.
+F: WordPiece is used by all GPT models.
+C: # "playing" -> ["play", "##ing"]
+
+@ SentencePiece / Unigram | 2
+D: Tokenization approaches that work on raw text (including spaces) and are popular for multilingual models like T5 and Gemma.
+T: SentencePiece treats the input as a raw character stream.
+F: SentencePiece requires text to be pre-split into words.
+C: # "▁Hello" marks a leading space
+
+@ Token pricing | 2
+D: API billing per token, usually with different prices for input, output and cached input.
+T: Output tokens usually cost more than input tokens.
+F: APIs charge per request regardless of length.
+C: cost = inp/1e6 * in_price + out/1e6 * out_price
+
+@ Words-to-tokens rule of thumb | 2
+D: In English, about 0.75 words per token (100 tokens ≈ 75 words).
+T: 1,000 English words are roughly 1,300 tokens.
+F: 1,000 English words are roughly 250 tokens.
+C: tokens ≈ words / 0.75
+
+@ Tokenization artifacts | 2
+D: Errors caused by how text is split into tokens, such as miscounting letters or mishandling long numbers.
+T: Counting letters in a word can be hard because the model sees tokens, not characters.
+F: Tokenization never affects model behaviour.
+C: # "strawberry" may be split into tokens like "str", "aw", "berry"
+
+@ Pre-training | 3
+D: Self-supervised next-token prediction on trillions of tokens, producing a base model.
+T: A base model continues text but may not follow instructions reliably.
+F: Pre-training uses only human-labelled instruction data.
+C: loss = cross_entropy(logits[:, :-1], tokens[:, 1:])
+
+@ Scaling laws | 3
+D: Empirical relationships between loss and model size, data and compute.
+T: Chinchilla suggested about 20 training tokens per parameter for compute-optimal training.
+F: Scaling laws show that data size has no effect on loss.
+C: # Kaplan 2020; Hoffmann (Chinchilla) 2022
+
+@ Supervised fine-tuning | 3
+D: Training on curated instruction–response pairs so the model follows instructions and a chat format.
+T: SFT turns a base model into an instruction-following model.
+F: SFT requires a reward model and RL.
+C: SFTTrainer(model=model, train_dataset=chats).train()
+
+@ RLHF | 3
+D: Reinforcement learning from human feedback: train a reward model on preferences, then optimize the policy (e.g. PPO) with a KL penalty.
+T: RLHF uses a reward model trained on human preference comparisons.
+F: RLHF trains without any human preference data.
+C: # preferences -> reward model -> PPO with KL to SFT model
+
+@ DPO | 3
+D: Direct Preference Optimization: training directly on chosen vs rejected pairs without a separate reward model or RL loop.
+T: DPO removes the need for a separate reward model.
+F: DPO requires PPO rollouts.
+C: DPOTrainer(model=model, ref_model=ref, train_dataset=pairs).train()
+
+@ Constitutional AI | 3
+D: Anthropic's approach using AI feedback guided by written principles to align models.
+T: Constitutional AI uses a set of principles to guide AI feedback.
+F: Constitutional AI forbids any training.
+C: # critique and revise responses according to principles
+
+@ GRPO | 3
+D: Group Relative Policy Optimization: RL that compares a group of sampled answers instead of using a value model, popularized by DeepSeek-R1.
+T: GRPO computes advantages relative to other samples in the group.
+F: GRPO requires a separate critic value network.
+C: GRPOTrainer(model=model, reward_funcs=[correctness]).train()
+
+@ RL with verifiable rewards | 3
+D: Training reasoning with rewards that can be checked automatically, like math answers or unit tests.
+T: Verifiable rewards are used to train reasoning models.
+F: Verifiable rewards require humans to score every sample.
+C: reward = 1.0 if answer == ground_truth else 0.0
+
+@ Distillation | 3
+D: Training a smaller student model to imitate a larger teacher model's outputs.
+T: Distillation transfers capability from big models to small ones.
+F: Distillation makes the student model larger than the teacher.
+C: # student learns from teacher responses / logits
+
+@ Logits | 4
+D: The raw, unnormalized scores the model outputs for every vocabulary token before softmax.
+T: Softmax converts logits into probabilities.
+F: Logits are already probabilities that sum to 1.
+C: probs = softmax(logits / temperature)
+
+@ Temperature | 4
+D: A decoding parameter dividing logits before softmax; low values sharpen and high values flatten the distribution.
+U: Your extraction pipeline gives different answers each run.
+T: Lower temperature makes outputs more deterministic and focused.
+F: Higher temperature makes outputs more deterministic.
+C: model.invoke(prompt, temperature=0)
+
+@ Top-k sampling | 4
+D: Sampling only from the k most likely tokens.
+T: top_k=1 is equivalent to greedy decoding.
+F: top_k=1 samples uniformly from the whole vocabulary.
+C: generate(..., top_k=40)
+
+@ Top-p (nucleus) sampling | 4
+D: Sampling from the smallest set of tokens whose cumulative probability reaches p.
+T: With probabilities 0.5, 0.25, 0.15, 0.1 and top_p=0.8, the nucleus has three tokens.
+F: Top-p always keeps exactly p tokens.
+C: generate(..., top_p=0.9)
+
+@ Min-p sampling | 4
+D: Keeping tokens whose probability is at least min_p times the top token's probability.
+T: Min-p adapts the cutoff to how confident the model is.
+F: Min-p keeps only the least likely tokens.
+C: generate(..., min_p=0.05)
+
+@ Greedy decoding | 4
+D: Always choosing the single most probable next token.
+T: Greedy decoding is deterministic for a fixed model and input.
+F: Greedy decoding samples randomly from all tokens.
+C: next_token = int(np.argmax(logits))
+
+@ Beam search | 4
+D: Keeping several candidate sequences at each step and choosing the highest-scoring one.
+T: Beam search is common in translation but rare in chat models.
+F: Beam search is the default for chat assistants.
+C: generate(..., num_beams=4)
+
+@ Stop sequences | 4
+D: Strings that end generation when produced.
+T: A stop sequence can end output at a delimiter like "\n\n".
+F: Stop sequences make the model generate longer outputs.
+C: model.bind(stop=["\n\nQuestion:"])
+
+@ Frequency and presence penalties | 4
+D: Decoding penalties that discourage repeating tokens already generated.
+T: Presence penalties encourage introducing new topics.
+F: Penalties increase repetition.
+C: client.chat.completions.create(..., frequency_penalty=0.5)
+
+@ Logprobs | 4
+D: Log-probabilities of generated tokens returned by some APIs, useful for confidence estimates.
+T: Logprobs can serve as a rough confidence signal for classification.
+F: Logprobs are the token prices.
+C: client.chat.completions.create(..., logprobs=True, top_logprobs=5)
+
+@ Context window | 5
+D: The maximum number of tokens (input plus output) a model can attend to at once.
+T: Frontier models in 2026 commonly offer around one-million-token windows.
+F: The context window counts only output tokens.
+C: # prompt_tokens + max_output_tokens <= context_window
+
+@ Prefill | 5
+D: Processing all input tokens in parallel before generation begins; determines time to first token.
+T: Longer prompts increase time to first token.
+F: Prefill generates the output tokens one at a time.
+C: # TTFT grows with prompt length
+
+@ Decode phase | 5
+D: Generating output tokens one at a time, each requiring a forward pass.
+T: Output length strongly affects total latency.
+F: All output tokens are produced in one parallel step.
+C: # tokens/second during decode
+
+@ KV cache | 5
+D: Stored keys and values of past tokens for each layer so they are not recomputed during decoding.
+T: KV cache size grows linearly with the number of tokens.
+F: The KV cache stores the model's weights.
+C: kv_bytes_per_token = 2 * layers * kv_heads * head_dim * bytes
+
+@ Time to first token | 5
+D: Latency from sending a request until the first output token arrives.
+T: Streaming makes perceived latency closer to time to first token.
+F: Time to first token includes generating the whole answer.
+C: # measure TTFT and tokens/s separately
+
+@ Prompt caching | 5
+D: Provider-side reuse of the computed state for a repeated prompt prefix, billed at a discount.
+U: Every request shares the same 20,000-token system prompt and documents.
+T: Putting stable content first maximizes prompt cache hits.
+F: Prompt caching works best when the variable part comes first.
+C: # [stable system prompt + docs] + [user question]
+
+@ Continuous batching | 5
+D: Server technique that adds and removes requests from a running batch at every step to maximize GPU utilization.
+T: vLLM uses continuous batching.
+F: Continuous batching waits for all requests to finish before starting new ones.
+C: vllm serve Qwen/Qwen3-8B
+
+@ PagedAttention | 5
+D: vLLM's technique managing the KV cache in pages to avoid memory fragmentation.
+T: PagedAttention improves memory efficiency for many concurrent requests.
+F: PagedAttention is a tokenization method.
+C: # KV cache blocks allocated like virtual memory pages
+
+@ Speculative decoding | 5
+D: A small draft model proposes several tokens that the large model verifies in parallel.
+T: Speculative decoding can speed up generation without changing outputs.
+F: Speculative decoding always reduces output quality.
+C: # draft k tokens -> verify in one big-model pass
+
+@ Needle in a haystack | 5
+D: A test that hides a fact in a long context and checks whether the model retrieves it.
+T: Long-context benchmarks probe whether models use all positions reliably.
+F: Needle in a haystack measures training speed.
+C: # insert "The secret code is 4417" at depth 50%
+
+@ Open weights | 6
+D: Model parameters that can be downloaded and run yourself, which is not always the same as fully open source.
+T: An open-weights model may still have training data and code that are not public.
+F: Open weights always means the training data is public.
+C: ollama pull qwen3:8b
+
+@ Llama | 6
+D: Meta's open-weight model family that catalyzed the open LLM ecosystem; Llama 4 introduced MoE variants.
+T: Llama models are developed by Meta.
+F: Llama models are developed by Google.
+C: ollama run llama3.2
+
+@ Qwen | 6
+D: Alibaba's model family with many sizes, strong multilingual and coding ability, many released under Apache-2.0.
+T: Qwen is developed by Alibaba.
+F: Qwen is developed by Mistral AI.
+C: AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-8B")
+
+@ DeepSeek-R1 | 6
+D: DeepSeek's January 2025 open reasoning model trained with large-scale RL, released under the MIT licence.
+T: DeepSeek-R1 popularized GRPO-based reasoning training.
+F: DeepSeek-R1 is a closed model available only to one company.
+C: # deepseek-ai/DeepSeek-R1
+
+@ Gemma | 6
+D: Google's family of small open models derived from Gemini research.
+T: Gemma models come from Google.
+F: Gemma is a vector database.
+C: ollama run gemma3
+
+@ Phi | 6
+D: Microsoft's family of small language models emphasizing high-quality training data.
+T: Phi models are small language models from Microsoft.
+F: Phi models are from Meta.
+C: # microsoft/phi-4
+
+@ Mistral AI | 6
+D: A French AI company offering open models (Mistral, Mixtral, Ministral) and API models (Mistral Large).
+T: Mixtral 8x7B was an early open mixture-of-experts model.
+F: Mistral AI is based in Canada.
+C: # mistralai/Mixtral-8x7B-Instruct
+
+@ Claude | 6
+D: Anthropic's model family, offered in tiers such as Haiku, Sonnet and Opus, known for coding and agentic use.
+T: Claude models are developed by Anthropic.
+F: Claude models are developed by OpenAI.
+C: init_chat_model("anthropic:claude-sonnet-5")
+
+@ Gemini | 6
+D: Google's natively multimodal model family with Flash and Pro tiers and very long context windows.
+T: Gemini models accept text, images, audio and video.
+F: Gemini is text-only.
+C: init_chat_model("google_genai:gemini-3.6-flash")
+
+@ GPT | 6
+D: OpenAI's model family (GPT-4o, GPT-5.x and later), alongside o-series reasoning models.
+T: GPT models are developed by OpenAI.
+F: GPT models are developed by Meta.
+C: init_chat_model("openai:gpt-5.5")
+
+@ gpt-oss | 6
+D: OpenAI's 2025 open-weight reasoning models.
+T: gpt-oss models can be downloaded and self-hosted.
+F: gpt-oss is a tokenizer.
+C: # openai/gpt-oss-20b
+
+@ Model router | 6
+D: A component that sends easy requests to a cheap model and hard ones to a stronger model.
+U: 80% of support questions are simple and you want to cut cost without hurting hard cases.
+T: Routing can reduce cost while keeping quality on hard requests.
+F: A model router always uses the most expensive model.
+C: model = small if classify(q) == "easy" else frontier
+
+@ LMArena | 6
+D: A crowdsourced leaderboard ranking chat models by pairwise human preference votes.
+T: LMArena rankings are based on human pairwise preferences.
+F: LMArena ranks embedding models by nDCG.
+C: # Elo-style ratings from blind comparisons
+
+@ Reasoning model | 7
+D: A model that generates a long internal chain of thought before answering, trading test-time compute for accuracy.
+U: You need better accuracy on hard math and multi-step planning problems.
+T: Thinking tokens are usually billed as output tokens.
+F: Reasoning models always answer faster than standard models.
+C: client.responses.create(model="...", reasoning={"effort": "high"}, input=q)
+
+@ Reasoning effort | 7
+D: A control (low/medium/high or a thinking budget) for how much a reasoning model thinks.
+T: Higher reasoning effort usually increases latency and cost.
+F: Reasoning effort controls the vocabulary size.
+C: reasoning={"effort": "low"}
+
+@ Test-time compute | 7
+D: Spending more computation at inference (longer reasoning, sampling, search) to improve answers.
+T: Self-consistency is a form of test-time compute scaling.
+F: Test-time compute changes the model's training data.
+C: answers = [llm(q) for _ in range(8)]\nmajority_vote(answers)
+
+@ Mixture of Experts | 7
+D: Layers with many expert feed-forward networks where a router sends each token to the top-k experts.
+T: In MoE models, total parameters far exceed active parameters per token.
+F: In MoE models, every expert processes every token.
+C: # router picks 2 of 8 experts per token
+
+@ Active parameters | 7
+D: The parameters actually used to process one token in an MoE model.
+T: Mixtral 8x7B has about 47B total but about 13B active parameters per token.
+F: Active parameters are always equal to total parameters in MoE.
+C: # DeepSeek-V3: 671B total, ~37B active
+
+@ MoE memory requirement | 7
+D: All experts must be stored in memory even though only a few are used per token.
+T: MoE saves compute per token but not weight memory.
+F: MoE models only need memory for the active experts.
+C: # memory ≈ total params × bytes per param
+
+@ Multimodal LLM | 7
+D: A model that accepts several input types such as text, images, audio or video.
+T: Vision-language models can read charts and screenshots.
+F: Multimodal LLMs only accept text.
+C: HumanMessage(content=[{"type": "text", "text": "Describe"}, {"type": "image", "url": url}])
+
+@ Weight memory formula | 8
+D: Memory for weights ≈ parameters × bytes per parameter (FP16 = 2, INT8 = 1, 4-bit = 0.5).
+T: A 7B model in FP16 needs about 14 GB for weights.
+F: A 7B model in FP16 needs about 7 GB for weights.
+C: gb = params_billion * bytes_per_param
+
+@ Quantization | 8
+D: Storing weights (and sometimes activations) in fewer bits to reduce memory and speed up inference.
+U: You want to run an 8B model on a laptop GPU with 8 GB of memory.
+T: 4-bit quantization reduces weight memory to about a quarter of FP16.
+F: Quantization always improves model quality.
+C: ollama run qwen3:8b   # 4-bit quantized by default
+
+@ GGUF | 8
+D: The llama.cpp model file format supporting quantization types like Q4_K_M and Q8_0.
+T: GGUF files are used by llama.cpp and Ollama.
+F: GGUF is a GPU-only format for vLLM.
+C: ./llama-cli -m qwen3-8b-Q4_K_M.gguf -p "Hello"
+
+@ GPTQ | 8
+D: A post-training, layer-wise weight quantization method for GPU inference.
+T: GPTQ quantizes weights after training.
+F: GPTQ requires retraining the model from scratch.
+C: # TheBloke/...-GPTQ
+
+@ AWQ | 8
+D: Activation-aware Weight Quantization that protects the most salient weights.
+T: AWQ uses activation statistics to decide which weights matter most.
+F: AWQ ignores activations entirely.
+C: # model-AWQ checkpoints for vLLM
+
+@ NF4 | 8
+D: A 4-bit NormalFloat data type from bitsandbytes used by QLoRA.
+T: QLoRA fine-tunes on top of a 4-bit NF4 base model.
+F: NF4 is a 16-bit float format.
+C: BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
+
+@ Ollama | 8
+D: A developer-friendly local model runner built on llama.cpp with an OpenAI-compatible API.
+U: You want to try an open model locally with one command.
+T: ollama run downloads and runs a model locally.
+F: Ollama only runs models in the cloud.
+C: ollama pull qwen3:8b\nollama run qwen3:8b "Explain RAG"
+
+@ vLLM | 8
+D: A high-throughput GPU inference server with PagedAttention, continuous batching and an OpenAI-compatible API.
+U: You must serve an open model to hundreds of concurrent users on GPUs.
+T: vllm serve exposes an OpenAI-compatible endpoint.
+F: vLLM is designed mainly for CPU-only laptops.
+C: vllm serve Qwen/Qwen3-8B --max-model-len 32768
+
+@ llama.cpp | 8
+D: A C/C++ inference engine for GGUF models on CPU, Apple Silicon and GPUs.
+T: llama.cpp can run quantized models on CPUs.
+F: llama.cpp requires an NVIDIA GPU.
+C: ./llama-server -m model.gguf
+
+@ SGLang | 8
+D: A fast serving framework with prefix caching (RadixAttention) and efficient structured generation.
+T: SGLang uses RadixAttention for prefix caching.
+F: SGLang is a tokenizer.
+C: python -m sglang.launch_server --model-path Qwen/Qwen3-8B
+
+@ Few-shot prompting | 9
+D: Including example inputs and outputs in the prompt to demonstrate the desired behaviour.
+T: Few-shot examples help with tricky output formats.
+F: Few-shot prompting changes the model's weights.
+C: "Input: 2+2\nOutput: 4\nInput: 3*3\nOutput: 9\nInput: {q}\nOutput:"
+
+@ Delimiters in prompts | 9
+D: Markers such as XML tags or Markdown fences separating instructions from data.
+T: Delimiters reduce confusion between instructions and user data.
+F: Delimiters make prompts less clear.
+C: "<document>{doc}</document>\nSummarize the document above."
+
+@ Structured outputs | 9
+D: Constraining model output to a JSON Schema via provider features or constrained decoding.
+U: Downstream code crashes when the model returns malformed JSON.
+T: Schema-constrained decoding guarantees parseable JSON.
+F: Structured outputs require regex parsing of free text.
+C: client.chat.completions.parse(model="...", messages=msgs, response_format=Invoice)
+
+@ Fine-tuning vs RAG | 9
+D: Fine-tuning changes behaviour, style and format; RAG supplies fresh or private facts at query time.
+T: For frequently changing facts, RAG is preferred over fine-tuning.
+F: Fine-tuning is the best way to add yesterday's news to a model.
+C: # style -> fine-tune; facts -> RAG
+
+@ LoRA | 9
+D: Low-Rank Adaptation: freezing base weights and training a low-rank update ΔW = B·A.
+U: You need to adapt a 7B model on a single GPU with little memory.
+T: LoRA trains far fewer parameters than full fine-tuning.
+F: LoRA updates every weight of the base model.
+C: LoraConfig(r=16, lora_alpha=32, target_modules=["q_proj", "v_proj"])
+B: config = LoraConfig(____=16, lora_alpha=32, target_modules=["q_proj", "v_proj"]) ;; r ;; rank_size ;; alpha ;; layers
+
+@ QLoRA | 9
+D: LoRA fine-tuning on top of a 4-bit quantized base model to fit large models on one GPU.
+T: QLoRA uses a 4-bit NF4 base model.
+F: QLoRA requires full 32-bit weights.
+C: BitsAndBytesConfig(load_in_4bit=True)
+
+@ TRL | 9
+D: Hugging Face's library for post-training with SFT, DPO, GRPO and reward-model trainers.
+T: TRL provides SFTTrainer and DPOTrainer.
+F: TRL is a vector database.
+C: from trl import SFTTrainer, DPOTrainer, GRPOTrainer
+
+@ LoRA parameter count | 9
+D: Adapting a d×k matrix with rank r trains r×(d+k) parameters.
+T: A 4096×4096 matrix with r=8 trains 65,536 LoRA parameters.
+F: LoRA always trains exactly d×k parameters.
+C: params = r * (d + k)
+
+% decoding strategy or parameter | 4 | temperature; top-k; top-p (nucleus); min-p; greedy decoding; beam search | LLM training stage
+% LLM training stage | 3 | pre-training; supervised fine-tuning; RLHF; DPO; RL with verifiable rewards; distillation | decoding strategy or parameter
+% tokenization algorithm | 2 | Byte-Pair Encoding; WordPiece; Unigram (SentencePiece)
+% open-weight model family | 6 | Llama; Qwen; DeepSeek; Gemma; Mistral/Mixtral; Phi; gpt-oss; Kimi | proprietary API model family
+% proprietary API model family | 6 | GPT; Claude; Gemini; Grok | open-weight model family
+% local or self-hosted inference engine | 8 | Ollama; llama.cpp; vLLM; SGLang; TGI; LM Studio; TensorRT-LLM | weight quantization method
+% weight quantization method | 8 | GGUF k-quants; GPTQ; AWQ; bitsandbytes NF4; FP8 | local or self-hosted inference engine
+% parameter-efficient fine-tuning method | 9 | LoRA; QLoRA; prefix tuning; adapters (IA3)
+% Transformer efficiency technique | 1 | Grouped-Query Attention; FlashAttention; sliding-window attention; Multi-head Latent Attention; KV cache
+% inference serving optimization | 5 | continuous batching; PagedAttention; speculative decoding; prompt caching; quantization
+
+> Typical LLM training pipeline | 3 | pre-train on next-token prediction ; supervised fine-tune on instructions ; align with preference optimization (RLHF or DPO) ; RL with verifiable rewards for reasoning
+> What happens when you call a chat model | 5 | the prompt is tokenized ; prefill processes all input tokens ; decode generates tokens one at a time using the KV cache ; tokens are detokenized and streamed back
+> Inside one decoding step | 4 | model outputs logits ; logits are divided by the temperature ; top-k/top-p truncate the distribution ; a token is sampled from the remaining probabilities

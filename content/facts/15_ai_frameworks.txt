@@ -1,0 +1,530 @@
+# AI Frameworks. Lessons: 1 stack map, 2 PyTorch/TF/JAX, 3 Hugging Face, 4 LLM app frameworks, 5 agent frameworks, 6 inference/gateways, 7 structured output/guardrails, 8 eval/observability, 9 protocols/stack choice
+@ AI stack layers | 1
+D: Grouping tools by role: DL frameworks, model hubs, serving, gateways, app frameworks, agents, retrieval, guardrails, evaluation, protocols and UI.
+T: Comparing tools within the same layer is more meaningful than across layers.
+F: vLLM and LangChain are direct alternatives in the same layer.
+C: # serving: vLLM | app framework: LangChain | vector DB: Qdrant
+
+@ PyTorch | 2
+D: Meta-originated deep learning framework with eager execution and autograd, dominant in research and LLM training.
+T: PyTorch is governed by the PyTorch Foundation under the Linux Foundation.
+F: PyTorch only supports static computation graphs.
+C: import torch\nx = torch.randn(4, 768)\nloss.backward()
+
+@ Autograd | 2
+D: Automatic differentiation that records operations and computes gradients via backward().
+T: Calling loss.backward() populates .grad on tensors that require gradients.
+F: Autograd requires writing derivatives by hand.
+C: x = torch.tensor(3.0, requires_grad=True)\ny = x ** 2\ny.backward()\nx.grad   # tensor(6.)
+
+@ torch.compile | 2
+D: PyTorch 2.x feature that compiles models into optimized graphs for speedups.
+T: torch.compile can speed up training and inference without rewriting the model.
+F: torch.compile converts PyTorch models into TensorFlow.
+C: model = torch.compile(model)
+
+@ FSDP | 2
+D: Fully Sharded Data Parallel: sharding parameters, gradients and optimizer states across GPUs for large-model training.
+U: Your model's parameters don't fit on a single GPU during training.
+T: FSDP shards model state across devices.
+F: FSDP copies the full model to every GPU without sharding.
+C: model = FSDP(model)
+
+@ DDP | 2
+D: DistributedDataParallel: each GPU holds a full model replica and gradients are averaged.
+T: DDP replicates the model on every GPU.
+F: DDP shards the model across GPUs.
+C: model = torch.nn.parallel.DistributedDataParallel(model)
+
+@ TensorFlow | 2
+D: Google's deep learning framework with strong production tooling such as TF Serving and LiteRT/TFLite for mobile.
+T: TensorFlow Lite (now LiteRT) targets mobile and edge devices.
+F: TensorFlow cannot run on mobile devices.
+C: import tensorflow as tf
+
+@ Keras 3 | 2
+D: A high-level deep learning API that runs on TensorFlow, JAX or PyTorch backends.
+T: The same Keras 3 code can run on JAX, TensorFlow or PyTorch.
+F: Keras 3 only runs on TensorFlow.
+C: import os; os.environ["KERAS_BACKEND"] = "jax"\nimport keras
+
+@ JAX | 2
+D: Google's NumPy-like library with composable transformations: jit, grad, vmap and parallelism on XLA.
+U: You train large models on TPUs and want functional transformations.
+T: jax.grad returns a function computing the gradient.
+F: JAX has no automatic differentiation.
+C: import jax, jax.numpy as jnp\njax.grad(lambda x: jnp.sum(x ** 2))(jnp.array([1.0, 2.0]))
+
+@ jax.jit | 2
+D: JAX transformation that compiles a function with XLA for speed.
+T: jit-compiled functions run faster after the first call.
+F: jax.jit computes gradients.
+C: fast = jax.jit(f)
+
+@ jax.vmap | 2
+D: JAX transformation that vectorizes a function over a batch dimension automatically.
+T: vmap removes the need for manual batching loops.
+F: vmap distributes work across multiple machines.
+C: batched = jax.vmap(f)(xs)
+
+@ Flax | 2
+D: A neural network library built on JAX.
+T: Flax provides neural network modules for JAX.
+F: Flax is a PyTorch extension.
+C: import flax.linen as nn
+
+@ XLA | 2
+D: The Accelerated Linear Algebra compiler used by JAX and TensorFlow to optimize computations for GPUs and TPUs.
+T: JAX compiles computations through XLA.
+F: XLA is a tokenizer.
+C: # jax.jit -> XLA HLO -> optimized kernels
+
+@ ONNX | 2
+D: Open Neural Network Exchange: a portable model format, run efficiently by ONNX Runtime across hardware.
+U: You want to deploy a PyTorch embedding model on CPU servers and mobile with one format.
+T: ONNX Runtime can run exported models on CPU, GPU and mobile.
+F: ONNX models can only run on Apple devices.
+C: torch.onnx.export(model, sample, "model.onnx")
+
+@ Hugging Face Hub | 3
+D: The platform hosting models, datasets and Spaces demos.
+T: Models on the Hub come with model cards describing usage and licences.
+F: The Hugging Face Hub only hosts datasets.
+C: huggingface-cli download Qwen/Qwen3-0.6B
+
+@ transformers | 3
+D: Hugging Face library giving a common API (AutoModel, AutoTokenizer, pipeline) over thousands of pretrained models.
+T: pipeline("sentiment-analysis") gives one-line inference.
+F: transformers only supports BERT.
+C: from transformers import pipeline\npipeline("sentiment-analysis")("I love RAG!")
+B: from transformers import ____\nclf = ____("sentiment-analysis") ;; pipeline ;; AutoPipeline ;; Task ;; Inference
+
+@ AutoModelForCausalLM | 3
+D: transformers class that loads a decoder-only language model for text generation.
+T: AutoModelForCausalLM.from_pretrained loads generative LLMs.
+F: AutoModelForCausalLM loads image classifiers.
+C: AutoModelForCausalLM.from_pretrained("Qwen/Qwen3-0.6B", torch_dtype="auto")
+
+@ datasets | 3
+D: Hugging Face library for loading and processing datasets efficiently with Arrow and streaming.
+T: datasets can stream large datasets without downloading everything.
+F: datasets stores data only as Python lists in memory.
+C: from datasets import load_dataset\nds = load_dataset("squad", split="train")
+
+@ tokenizers | 3
+D: Hugging Face's fast tokenizer library written in Rust.
+T: Fast tokenizers are implemented in Rust.
+F: tokenizers is a JavaScript library.
+C: from tokenizers import Tokenizer
+
+@ PEFT | 3
+D: Hugging Face library for parameter-efficient fine-tuning such as LoRA and QLoRA.
+U: You want to fine-tune a 7B model on one GPU.
+T: PEFT trains small adapters instead of all weights.
+F: PEFT always updates every model weight.
+C: from peft import LoraConfig, get_peft_model
+
+@ TRL | 3
+D: Hugging Face library for post-training with SFT, DPO, GRPO and reward modelling.
+T: TRL provides SFTTrainer, DPOTrainer and GRPOTrainer.
+F: TRL is a vector database.
+C: from trl import SFTTrainer
+
+@ accelerate | 3
+D: Hugging Face library that runs the same training code on CPU, single GPU, multi-GPU or TPU.
+T: accelerate abstracts device placement and distributed setup.
+F: accelerate is a model hub.
+C: accelerate launch train.py
+
+@ safetensors | 3
+D: A safe, fast tensor serialization format that avoids arbitrary code execution unlike pickle.
+T: safetensors files cannot execute code when loaded.
+F: safetensors is slower and less safe than pickle.
+C: from safetensors.torch import load_file
+
+@ Model card | 3
+D: Documentation on the Hub describing a model's intended use, training data, limitations and licence.
+T: Checking the model card and licence is essential before deploying a model.
+F: Model cards contain the model weights.
+C: # README.md on the model's Hub page
+
+@ diffusers | 3
+D: Hugging Face library for diffusion models that generate images, video and audio.
+T: diffusers provides pipelines for text-to-image generation.
+F: diffusers is for text embeddings.
+C: from diffusers import DiffusionPipeline
+
+@ LangChain (framework) | 4
+D: LLM application framework with the broadest integration ecosystem; v1 centres on create_agent with middleware.
+T: LangChain v1 agents run on the LangGraph runtime.
+F: LangChain is a GPU inference server.
+C: from langchain.agents import create_agent
+
+@ LlamaIndex (framework) | 4
+D: Data-centric LLM framework for ingestion, indexing, advanced retrieval, Workflows and agents.
+T: LlamaIndex specializes in connecting LLMs to data.
+F: LlamaIndex is Meta's LLM.
+C: from llama_index.core import VectorStoreIndex
+
+@ Haystack | 4
+D: deepset's production-oriented framework built from explicit Pipelines of typed Components.
+U: You want explicit, serializable pipelines with typed component connections.
+T: Haystack pipelines connect component outputs to inputs explicitly with connect().
+F: Haystack only supports a single fixed RAG pipeline.
+C: pipe = Pipeline()\npipe.add_component("retriever", retriever)\npipe.connect("retriever.documents", "prompt.documents")
+
+@ Haystack component | 4
+D: A Python class decorated with @component that declares typed inputs and outputs.
+T: Components are the building blocks of Haystack pipelines.
+F: Haystack components cannot declare outputs.
+C: @component\nclass Upper:\n    @component.output_types(text=str)\n    def run(self, text: str):\n        return {"text": text.upper()}
+
+@ Semantic Kernel (framework) | 4
+D: Microsoft SDK for .NET, Python and Java integrating LLMs through plugins, now converging into Microsoft Agent Framework.
+T: Semantic Kernel organizes callable functions as plugins.
+F: Semantic Kernel only supports Rust.
+C: kernel.add_plugin(WeatherPlugin(), "weather")
+
+@ DSPy | 4
+D: Stanford's framework for programming LMs with signatures and modules, using optimizers to tune prompts automatically.
+U: You want prompts and few-shot examples optimized automatically against a metric.
+T: DSPy signatures like "question -> answer" declare inputs and outputs.
+F: DSPy requires writing all prompts by hand.
+C: qa = dspy.ChainOfThought("question -> answer")\nqa(question="What is RAG?").answer
+
+@ DSPy optimizer | 4
+D: An algorithm such as MIPROv2, BootstrapFewShot or GEPA that tunes a DSPy program's prompts and demos using a metric.
+T: DSPy optimizers need a metric and training examples.
+F: DSPy optimizers change the model's weights by default.
+C: optimized = dspy.MIPROv2(metric=exact_match).compile(program, trainset=train)
+
+@ LangGraph (agent framework) | 5
+D: Graph-based agent runtime with durable execution, interrupts, persistence and streaming.
+T: LangGraph's core abstraction is a state graph.
+F: LangGraph's core abstraction is a crew of role-playing agents.
+C: StateGraph(State)
+
+@ CrewAI (agent framework) | 5
+D: Role-based multi-agent framework with crews, tasks, processes and Flows.
+T: CrewAI agents are defined with role, goal and backstory.
+F: CrewAI is maintained by Google.
+C: Crew(agents=[...], tasks=[...], process=Process.sequential)
+
+@ OpenAI Agents SDK (framework) | 5
+D: Lightweight agent framework with Agent, Runner, handoffs, guardrails, sessions and tracing.
+T: The Agents SDK uses handoffs to transfer conversations between agents.
+F: The Agents SDK requires LangChain.
+C: Runner.run_sync(agent, "Hello")
+
+@ Google ADK (framework) | 5
+D: Google's Agent Development Kit with LLM agents, workflow agents and the adk web dev UI.
+T: ADK offers Sequential, Parallel and Loop workflow agents.
+F: ADK has no developer UI.
+C: adk web
+
+@ Microsoft Agent Framework (framework) | 5
+D: Microsoft's agent framework unifying AutoGen and Semantic Kernel with agents and graph workflows for .NET and Python.
+T: Microsoft Agent Framework is the successor to AutoGen.
+F: Microsoft Agent Framework is a vector database.
+C: from agent_framework import Agent
+
+@ Pydantic AI (framework) | 5
+D: Type-safe agent framework from the Pydantic team with dependency injection and validated outputs.
+T: Pydantic AI validates outputs with Pydantic models.
+F: Pydantic AI is written in Go.
+C: Agent("openai:gpt-5.5", output_type=CityInfo)
+
+@ Mastra | 5
+D: A TypeScript framework for agents and workflows.
+T: Mastra targets the TypeScript/JavaScript ecosystem.
+F: Mastra is a Python-only library.
+C: // import { Agent } from "@mastra/core"
+
+@ Agno | 5
+D: A lightweight, fast Python framework for building multi-agent systems.
+T: Agno is an independent open-source agent framework.
+F: Agno is a GPU driver.
+C: from agno.agent import Agent
+
+@ Framework selection criteria | 5
+D: Choosing by control vs convenience, durability and HITL needs, ecosystem, observability and team skills.
+T: Graph/workflow frameworks give precise control; high-level frameworks start faster.
+F: All agent frameworks offer identical control over execution.
+C: # need pause/resume for hours? -> durable checkpointing framework
+
+@ vLLM (engine) | 6
+D: High-throughput GPU inference engine using PagedAttention and continuous batching with an OpenAI-compatible server.
+U: Serve an open model to many concurrent users with high throughput.
+T: vLLM exposes /v1/chat/completions compatible with OpenAI clients.
+F: vLLM is a model training framework.
+C: vllm serve Qwen/Qwen3-8B
+
+@ SGLang (engine) | 6
+D: Fast serving engine with RadixAttention prefix caching and efficient structured generation.
+T: SGLang is well suited to agent workloads with shared prefixes.
+F: SGLang only runs on CPUs.
+C: python -m sglang.launch_server --model-path Qwen/Qwen3-8B
+
+@ TGI | 6
+D: Hugging Face Text Generation Inference, a production server for LLMs.
+T: TGI is Hugging Face's LLM serving solution.
+F: TGI is a tokenizer library.
+C: docker run ghcr.io/huggingface/text-generation-inference --model-id Qwen/Qwen3-8B
+
+@ TensorRT-LLM | 6
+D: NVIDIA's library for maximum-performance LLM inference on NVIDIA GPUs.
+T: TensorRT-LLM targets NVIDIA GPUs.
+F: TensorRT-LLM runs on AMD GPUs only.
+C: # build optimized engines for NVIDIA GPUs
+
+@ Ollama (engine) | 6
+D: Developer-friendly local model runner built on llama.cpp.
+T: Ollama exposes a local OpenAI-compatible API.
+F: Ollama requires a cloud account to run models.
+C: ollama run llama3.2
+
+@ llama.cpp (engine) | 6
+D: C/C++ inference for GGUF quantized models on CPU, Apple Silicon and GPUs.
+T: llama.cpp introduced the GGUF format ecosystem.
+F: llama.cpp is written in Java.
+C: ./llama-server -m model.gguf
+
+@ MLX | 6
+D: Apple's array framework optimized for Apple Silicon, also used to run LLMs locally.
+T: MLX targets Apple Silicon Macs.
+F: MLX is designed for NVIDIA data centers.
+C: pip install mlx-lm\nmlx_lm.generate --model mlx-community/Qwen3-4B-4bit --prompt "hi"
+
+@ Groq | 6
+D: An inference provider running models on custom LPU hardware for very fast token generation.
+T: Groq uses custom LPU chips.
+F: Groq is an open-source vector database.
+C: # OpenAI-compatible API with very high tokens/second
+
+@ LiteLLM | 6
+D: Python SDK and proxy exposing 100+ providers through an OpenAI-compatible interface with budgets, fallbacks and logging.
+U: Your team wants one API, budgets and fallbacks across OpenAI, Anthropic, Bedrock and local models.
+T: LiteLLM model strings look like "anthropic/claude-sonnet-5".
+F: LiteLLM only supports OpenAI.
+C: from litellm import completion\ncompletion(model="anthropic/claude-sonnet-5", messages=[{"role": "user", "content": "hi"}])
+
+@ OpenRouter | 6
+D: A hosted router/marketplace giving access to many models through one API key.
+T: OpenRouter lets you switch between many providers' models with one key.
+F: OpenRouter is a local inference engine.
+C: base_url="https://openrouter.ai/api/v1"
+
+@ OpenAI-compatible API | 6
+D: The de-facto /v1/chat/completions interface supported by many servers and providers.
+T: Changing base_url lets the same client talk to vLLM, Ollama or LiteLLM.
+F: Every provider requires a completely different client library.
+C: client = OpenAI(base_url="http://localhost:8000/v1", api_key="none")
+
+@ AI gateway | 6
+D: A proxy layer adding caching, rate limits, routing, fallbacks and observability in front of model APIs.
+T: Gateways centralize keys, budgets and logging.
+F: Gateways train models.
+C: # app -> gateway (LiteLLM/Portkey/Cloudflare) -> providers
+
+@ Managed inference providers | 6
+D: Services like Together AI, Fireworks, Groq, Bedrock, Azure AI Foundry and Vertex AI that host models behind APIs.
+T: Managed providers can serve open-weight models without your own GPUs.
+F: Managed providers only offer closed models.
+C: # call an open model via a hosted OpenAI-compatible endpoint
+
+@ Instructor | 7
+D: A library adding Pydantic-validated structured outputs with automatic retries across many providers.
+U: You want typed objects from any LLM with retries on validation errors.
+T: Instructor uses response_model to return a validated Pydantic object.
+F: Instructor is a vector database.
+C: client = instructor.from_openai(OpenAI())\nclient.chat.completions.create(model="gpt-5.4-mini", response_model=Invoice, messages=msgs)
+
+@ Outlines | 7
+D: A library for constrained generation of open models using regex, JSON Schema or grammars.
+T: Outlines guarantees outputs match a schema by constraining decoding.
+F: Outlines post-processes text with string replacement only.
+C: # outlines generator constrained to a JSON schema
+
+@ Constrained decoding | 7
+D: Masking invalid tokens during generation so output must follow a grammar or schema.
+T: Constrained decoding produces syntactically valid JSON by construction.
+F: Constrained decoding allows any token at every step.
+C: # grammar-guided token masking (XGrammar, llguidance)
+
+@ BAML | 7
+D: A domain-specific language for defining typed LLM functions and prompts.
+T: BAML defines LLM functions with typed inputs and outputs.
+F: BAML is a GPU kernel library.
+C: // function ExtractInvoice(text: string) -> Invoice { ... }
+
+@ Guardrails AI | 7
+D: A framework applying validators (PII, toxicity, regex, competitor checks) to LLM inputs and outputs.
+T: Guardrails AI uses validators from a hub.
+F: Guardrails AI is an embedding model.
+C: Guard().use(DetectPII, ["EMAIL_ADDRESS"], on_fail="fix")
+
+@ NeMo Guardrails | 7
+D: NVIDIA's toolkit for programmable rails defined in Colang to control dialogue topics and safety.
+T: NeMo Guardrails rails are written in Colang.
+F: NeMo Guardrails is a tokenizer.
+C: # config.yml + rails.co (Colang)
+
+@ Llama Guard | 7
+D: A safety classifier model from Meta that labels prompts and responses against a hazard taxonomy.
+U: You need a model-based check for unsafe prompts before they reach your LLM.
+T: Llama Guard classifies both user prompts and model responses.
+F: Llama Guard generates images.
+C: # classify(prompt) -> safe / unsafe + category
+
+@ Defence in depth | 7
+D: Layering input validation, instruction hierarchy, permission limits, output validation, human approval and monitoring.
+T: No single guardrail is sufficient on its own.
+F: One prompt instruction is enough to make an LLM app fully safe.
+C: # validate input -> limit tools -> validate output -> HITL -> monitor
+
+@ LangSmith (platform) | 8
+D: LangChain's platform for tracing, datasets, evaluators, prompt hub and deployment.
+T: LangSmith integrates deeply with LangChain and LangGraph.
+F: LangSmith is an open-source vector database.
+C: export LANGSMITH_TRACING=true
+
+@ Langfuse (platform) | 8
+D: Open-source, self-hostable platform for tracing, prompt management, evaluations and datasets.
+T: Langfuse can be self-hosted.
+F: Langfuse is only available as closed SaaS.
+C: from langfuse import observe
+
+@ Arize Phoenix | 8
+D: Open-source observability and evaluation tool built on OpenInference/OpenTelemetry.
+T: Phoenix can trace LLM apps via OpenInference instrumentations.
+F: Phoenix only works with TensorFlow.
+C: import phoenix as px\npx.launch_app()
+
+@ DeepEval | 8
+D: A pytest-style LLM testing library with G-Eval, RAG and agent metrics.
+U: You want LLM evaluation tests that run like unit tests in CI.
+T: DeepEval test cases can run with pytest.
+F: DeepEval is a model serving engine.
+C: assert_test(test_case, [AnswerRelevancyMetric(threshold=0.7)])
+
+@ promptfoo | 8
+D: A CLI for comparing prompts and models, red-teaming and running LLM tests in CI.
+T: promptfoo is configured with YAML test cases.
+F: promptfoo is a Python-only notebook library.
+C: npx promptfoo eval
+
+@ TruLens | 8
+D: An evaluation library using feedback functions such as the RAG triad.
+T: The RAG triad covers context relevance, groundedness and answer relevance.
+F: TruLens is a vector database.
+C: # feedback functions: groundedness, context relevance, answer relevance
+
+@ MLflow | 8
+D: An experiment-tracking platform that also offers LLM tracing and evaluation.
+T: MLflow tracks experiments, parameters and metrics.
+F: MLflow is an inference engine for GGUF models.
+C: mlflow.log_metric("faithfulness", 0.91)
+
+@ Weights & Biases Weave | 8
+D: W&B's toolkit for tracing and evaluating LLM applications tied to experiments.
+T: Weave traces LLM calls and evaluations.
+F: Weave is a tokenizer.
+C: import weave\nweave.init("rag-app")
+
+@ OpenTelemetry GenAI conventions | 8
+D: Standard span attributes for model calls (model, token usage...) that make LLM traces portable across backends.
+T: GenAI semantic conventions let traces flow to many observability backends.
+F: OpenTelemetry cannot represent LLM calls.
+C: # gen_ai.request.model, gen_ai.usage.input_tokens
+
+@ Offline vs online evaluation | 8
+D: Offline evals run on fixed datasets before release; online evals score sampled production traffic.
+T: Online evaluation can use LLM-as-judge on sampled traces.
+F: Offline evaluation requires live users.
+C: # CI: offline dataset; production: sampled traces + judges
+
+@ Red-teaming | 8
+D: Systematically probing an LLM app with adversarial prompts, jailbreaks and injection attacks.
+T: Red-teaming finds safety issues before attackers do.
+F: Red-teaming means painting the UI red.
+C: npx promptfoo redteam run
+
+@ MCP (protocol) | 9
+D: Model Context Protocol connecting AI apps (hosts/clients) to servers exposing tools, resources and prompts.
+T: MCP uses JSON-RPC over stdio or Streamable HTTP.
+F: MCP connects agents to other agents for task delegation.
+C: mcp = FastMCP("weather")
+
+@ A2A (protocol) | 9
+D: Agent2Agent protocol for agents to discover each other via Agent Cards and collaborate on tasks.
+T: A2A connects agents across frameworks and vendors.
+F: A2A is a tokenization standard.
+C: GET /.well-known/agent-card.json
+
+@ AG-UI | 9
+D: An event protocol for streaming agent state and actions to user interfaces.
+T: AG-UI standardizes agent-to-frontend events.
+F: AG-UI is a GPU scheduling protocol.
+C: # stream events: RUN_STARTED, TEXT_MESSAGE_CONTENT, TOOL_CALL_START ...
+
+@ Prototype RAG stack | 9
+D: A simple stack such as LangChain or LlamaIndex + Chroma/pgvector + a hosted LLM + Streamlit/FastAPI + Langfuse.
+T: Prototypes favour simple, managed components.
+F: Prototypes must start with self-hosted GPU clusters.
+C: # langchain + chroma + openai + streamlit + langfuse
+
+@ On-prem stack | 9
+D: A private stack with vLLM/SGLang serving open-weight models, open embeddings via TEI, pgvector/Milvus and self-hosted Langfuse.
+U: Data residency rules forbid sending documents to external APIs.
+T: Open-weight models plus self-hosted serving keep data on-premises.
+F: On-prem stacks must call external LLM APIs.
+C: vllm serve Qwen/Qwen3-32B  # + TEI(bge-m3) + pgvector
+
+@ Swappable components | 9
+D: Using standard APIs and protocols so models, vector stores and frameworks can be replaced later.
+T: OpenAI-compatible APIs and MCP make components easier to swap.
+F: Using proprietary interfaces everywhere makes migration easier.
+C: client = OpenAI(base_url=os.environ["LLM_BASE_URL"])
+
+@ Streamlit | 9
+D: A Python framework for building data and chat app UIs quickly.
+T: Streamlit apps are written in pure Python.
+F: Streamlit requires writing JavaScript.
+C: import streamlit as st\nst.chat_input("Ask me")
+
+@ Gradio | 9
+D: A Python library for quick ML demo UIs, widely used on Hugging Face Spaces.
+T: Gradio is common for Hugging Face Spaces demos.
+F: Gradio is a database.
+C: gr.ChatInterface(respond).launch()
+
+@ Chainlit | 9
+D: A Python framework for building conversational AI UIs with step visualization.
+T: Chainlit is designed for chat-style LLM apps.
+F: Chainlit is an embedding model.
+C: @cl.on_message\nasync def main(message): ...
+
+@ Vercel AI SDK | 9
+D: A TypeScript toolkit for building AI apps with streaming UI helpers for React/Next.js.
+T: The Vercel AI SDK targets the TypeScript ecosystem.
+F: The Vercel AI SDK is a Python training library.
+C: // import { streamText } from "ai"
+
+% deep learning framework | 2 | PyTorch; TensorFlow; JAX; Keras 3; MXNet | LLM inference engine
+% LLM inference engine | 6 | vLLM; SGLang; TGI; TensorRT-LLM; llama.cpp; Ollama; MLX | deep learning framework
+% Hugging Face library | 3 | transformers; datasets; tokenizers; PEFT; TRL; accelerate; diffusers; sentence-transformers
+% LLM application framework | 4 | LangChain; LlamaIndex; Haystack; Semantic Kernel; DSPy | LLM evaluation or observability tool
+% LLM evaluation or observability tool | 8 | LangSmith; Langfuse; Arize Phoenix; RAGAS; DeepEval; promptfoo; TruLens; MLflow | LLM application framework
+% agent framework | 5 | LangGraph; CrewAI; OpenAI Agents SDK; Google ADK; Microsoft Agent Framework; Pydantic AI; smolagents; Mastra | vector database
+% vector database | 9 | Qdrant; Weaviate; Milvus; Pinecone; Chroma; pgvector | agent framework
+% structured output library | 7 | Instructor; Outlines; XGrammar; BAML | guardrail or safety tool
+% guardrail or safety tool | 7 | Guardrails AI; NeMo Guardrails; Llama Guard; ShieldGemma; Prompt Guard | structured output library
+% model gateway or router | 6 | LiteLLM; OpenRouter; Portkey; Cloudflare AI Gateway | LLM inference engine
+% AI interoperability protocol | 9 | MCP; A2A; AG-UI; OpenTelemetry GenAI conventions
+% Python UI framework for AI demos | 9 | Streamlit; Gradio; Chainlit | AI interoperability protocol
+% JAX transformation | 2 | jit; grad; vmap; pmap
+% managed inference provider | 6 | Together AI; Fireworks AI; Groq; AWS Bedrock; Azure AI Foundry; Google Vertex AI
+
+> Layers of a production RAG stack (data to user) | 9 | ingestion and parsing ; hybrid retrieval with reranking ; orchestration with LangGraph or LlamaIndex Workflows ; FastAPI service via an LLM gateway ; tracing and evaluation
+> Fine-tuning an open model with Hugging Face | 3 | load the dataset with datasets ; load the base model with transformers ; attach LoRA adapters with PEFT ; train with TRL's SFTTrainer ; push the adapter to the Hub
+> DSPy workflow | 4 | declare a signature ; build a module such as ChainOfThought ; define a metric and training examples ; compile with an optimizer ; evaluate the optimized program

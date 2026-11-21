@@ -1,0 +1,318 @@
+# Graph RAG. Lessons: 1 KG fundamentals, 2 building KGs with LLMs, 3 Microsoft GraphRAG, 4 LightRAG & variants, 5 graph DBs & Cypher, 6 Text2Cypher & frameworks, 7 evaluation & when to use
+@ Knowledge graph | 1
+D: A representation of information as entities (nodes) connected by typed relationships (edges).
+T: Knowledge graphs make relationships between entities explicit and traversable.
+F: A knowledge graph stores only unconnected lists of documents.
+C: (:Person {name: "Ada"})-[:WORKS_AT]->(:Company {name: "Acme"})
+
+@ Triple | 1
+D: The basic fact unit (subject, predicate, object), e.g. (Marie Curie, WON, Nobel Prize).
+T: A triple links a subject to an object through a predicate.
+F: A triple always contains four elements.
+C: ("Marie Curie", "WON", "Nobel Prize")
+
+@ Property graph | 1
+D: A graph model where nodes and edges have labels and key-value properties.
+T: Neo4j uses the property graph model.
+F: Property graphs cannot store properties on relationships.
+C: CREATE (a:Person {name: "Ada"})-[:FOUNDED {year: 2019}]->(c:Company {name: "Acme"})
+
+@ RDF | 1
+D: A graph model where every fact is a subject-predicate-object triple using URIs, queried with SPARQL.
+T: RDF graphs are queried with SPARQL.
+F: RDF graphs are queried with Cypher only.
+C: SELECT ?o WHERE { :MarieCurie :won ?o }
+
+@ GQL | 1
+D: The ISO standard graph query language for property graphs, closely related to Cypher.
+T: GQL is an ISO-standardized property graph query language.
+F: GQL is a SQL dialect for relational tables only.
+C: MATCH (p:Person)-[:WORKS_AT]->(c:Company) RETURN p, c
+
+@ Node degree | 1
+D: The number of edges attached to a node, split into in-degree and out-degree for directed graphs.
+T: A hub entity has a high degree.
+F: Degree counts the number of properties on a node.
+C: MATCH (n {name: "Acme"})--() RETURN count(*) AS degree
+
+@ Hop | 1
+D: One edge traversal in a graph; multi-hop questions require following several edges.
+T: "The university of the founder of the company that acquired X" is a multi-hop question.
+F: A hop is a property of a node.
+C: MATCH (a)-[*2]->(b) RETURN b   // exactly two hops
+
+@ Community | 1
+D: A densely connected group of nodes that are more linked to each other than to the rest of the graph.
+T: Communities can be detected with algorithms such as Leiden or Louvain.
+F: A community is a single node with no edges.
+C: # Leiden partitions the graph into nested communities
+
+@ Ontology | 1
+D: A schema of allowed entity types, relationship types and constraints for a knowledge graph.
+T: An ontology keeps extracted graphs consistent.
+F: An ontology is a type of embedding model.
+C: entity_types = ["Person", "Company", "Product"]\nrelations = ["WORKS_AT", "MAKES"]
+
+@ Multi-hop question | 1
+D: A question whose answer requires combining facts connected through several relationships.
+U: "Which drug treats the disease caused by the gene mutated in patient X?"
+T: Vector similarity alone often struggles with multi-hop questions.
+F: Multi-hop questions can always be answered from a single chunk.
+C: MATCH (p:Patient {id:$x})-[:HAS_MUTATION]->(:Gene)-[:CAUSES]->(:Disease)<-[:TREATS]-(d:Drug) RETURN d
+
+@ Global question | 1
+D: A question about the whole corpus, like main themes, that no single chunk answers.
+U: "What are the top themes across 5,000 support tickets?"
+T: GraphRAG's global search targets corpus-wide questions.
+F: Global questions are best answered by retrieving the top-3 most similar chunks.
+C: graphrag query --method global --query "What are the main themes?"
+
+@ LLM entity extraction | 2
+D: Using an LLM prompt or structured output to extract entities and relationships from text chunks.
+T: Extraction is usually the dominant indexing cost of graph RAG.
+F: Entity extraction requires no model calls.
+C: extractor = llm.with_structured_output(Extraction)\nextractor.invoke("Extract triples: Ada founded Acme in 2019.")
+
+@ Entity resolution | 2
+D: Merging different mentions of the same real-world entity, such as "IBM" and "International Business Machines".
+U: Your graph has separate nodes for "OpenAI", "Open AI" and "OpenAI Inc."
+T: Poor entity resolution can break multi-hop paths.
+F: Entity resolution splits one entity into many nodes on purpose.
+C: MERGE (c:Company {name: canonical(name)})
+
+@ Schema-guided extraction | 2
+D: Restricting extraction to predefined entity and relation types for a cleaner, queryable graph.
+T: Schema-guided graphs have more consistent relation names than schema-free ones.
+F: Schema-guided extraction captures more noise than schema-free extraction.
+C: SchemaLLMPathExtractor(possible_entities=["PERSON", "COMPANY"], possible_relations=["WORKS_AT"])
+
+@ Provenance | 2
+D: Links from graph facts back to the source chunks they were extracted from.
+T: Provenance lets graph RAG answers cite the original text.
+F: Provenance is the process of deleting source documents after extraction.
+C: (e:Entity)-[:MENTIONED_IN]->(c:Chunk {id: "doc1#3"})
+
+@ LLMGraphTransformer | 2
+D: LangChain component that converts documents into graph documents (nodes and relationships) using an LLM.
+T: LLMGraphTransformer can restrict allowed nodes and relationships.
+F: LLMGraphTransformer is a vector store.
+C: from langchain_experimental.graph_transformers import LLMGraphTransformer\nLLMGraphTransformer(llm=llm, allowed_nodes=["Person", "Company"])
+
+@ Microsoft GraphRAG | 3
+D: Microsoft Research's approach that builds an LLM-extracted knowledge graph and pre-computes community summaries.
+T: GraphRAG answers corpus-wide questions using community reports.
+F: GraphRAG requires no LLM calls during indexing.
+C: graphrag init --root ./ragtest\ngraphrag index --root ./ragtest
+
+@ Text unit | 3
+D: GraphRAG's name for a chunk of source text from which entities are extracted.
+T: Text units are linked to the entities extracted from them.
+F: Text units are community summaries.
+C: # documents -> text units -> entities & relationships
+
+@ Leiden algorithm | 3
+D: A hierarchical community detection algorithm used by GraphRAG to partition the graph into nested communities.
+T: Leiden produces communities at multiple levels of granularity.
+F: Leiden is an embedding model.
+C: # hierarchical Leiden -> community levels 0, 1, 2 ...
+
+@ Community report | 3
+D: An LLM-written summary of a community's entities, relationships and key facts.
+T: Community reports are generated during indexing for each community.
+F: Community reports are written by users at query time.
+C: # one report per community per level
+
+@ Local search | 3
+D: GraphRAG mode that finds relevant entities and gathers their neighbours, relationships, reports and source text for specific questions.
+U: "What products does Acme make?"
+T: Local search is best for entity-specific questions.
+F: Local search map-reduces over every community report.
+C: graphrag query --method local --query "Who founded Acme?"
+
+@ Global search | 3
+D: GraphRAG mode that map-reduces over community reports to answer holistic questions.
+U: "What are the main themes in this dataset?"
+T: Global search runs a map step over community reports and a reduce step to combine partial answers.
+F: Global search only looks at a single entity's neighbours.
+C: graphrag query --method global --query "Main themes?"
+
+@ DRIFT search | 3
+D: GraphRAG mode that starts with a light global search over top community reports, then runs local searches on follow-up questions.
+T: DRIFT stands for Dynamic Reasoning and Inference with Flexible Traversal.
+F: DRIFT search skips community reports entirely.
+C: graphrag query --method drift --query "..."
+
+@ Dynamic community selection | 3
+D: A global search optimization that prunes irrelevant communities before map-reduce to cut cost.
+T: Dynamic community selection reduces global search cost.
+F: Dynamic community selection adds every community twice.
+C: api.global_search(..., dynamic_community_selection=True)
+
+@ LazyGraphRAG | 3
+D: A Microsoft variant that defers LLM summarization to query time, drastically cutting indexing cost.
+T: LazyGraphRAG avoids expensive upfront community summarization.
+F: LazyGraphRAG pre-computes even more reports than GraphRAG.
+C: # defer summarization until a query needs it
+
+@ GraphRAG indexing cost | 3
+D: The large number of LLM calls needed for extraction and community reports when building a GraphRAG index.
+T: GraphRAG indexing is much more expensive than vector indexing.
+F: GraphRAG indexing is cheaper than embedding chunks.
+C: # cost ≈ extraction calls per chunk + report calls per community
+
+@ LightRAG | 4
+D: A lighter graph RAG with dual-level retrieval (entities and themes) and incremental graph updates.
+U: Your documents change daily and full GraphRAG re-indexing is too expensive.
+T: LightRAG supports incremental updates without rebuilding the whole graph.
+F: LightRAG requires rebuilding the entire graph for every new document.
+C: rag.query("...", param=QueryParam(mode="hybrid"))
+
+@ Dual-level retrieval | 4
+D: LightRAG's use of low-level keys for specific entities and high-level keys for broad themes and relations.
+T: LightRAG extracts both low-level and high-level keywords from the query.
+F: Dual-level retrieval means querying two different LLMs.
+C: # low-level: "Acme", "Nova drone"; high-level: "supply chain risk"
+
+@ LightRAG query modes | 4
+D: naive, local, global, hybrid and mix modes controlling how LightRAG retrieves.
+T: LightRAG's hybrid mode combines local and global retrieval.
+F: LightRAG supports only a naive mode.
+C: QueryParam(mode="mix")
+
+@ HippoRAG | 4
+D: A hippocampus-inspired graph RAG that uses Personalized PageRank seeded by query entities to find related passages.
+T: HippoRAG performs multi-hop retrieval in a single step with Personalized PageRank.
+F: HippoRAG relies only on BM25.
+C: # seed PPR with query entities -> rank passages
+
+@ Personalized PageRank | 4
+D: PageRank biased toward seed nodes, ranking nodes by closeness to those seeds.
+T: Personalized PageRank ranks nodes relative to chosen seed nodes.
+F: Personalized PageRank ignores graph edges.
+C: nx.pagerank(G, personalization={"Acme": 1.0})
+
+@ KG-augmented vector RAG | 4
+D: Retrieving chunks with vectors, then expanding with graph neighbours of the entities they mention.
+T: Graph expansion can add related facts missing from the top-k chunks.
+F: KG-augmented RAG removes all vector search.
+C: chunks = vector_search(q)\nneighbors = graph.neighbors(entities_in(chunks))
+
+@ RAPTOR | 4
+D: A tree-based retrieval method that recursively clusters and summarizes chunks into a hierarchy.
+T: RAPTOR builds a tree of summaries rather than an entity graph.
+F: RAPTOR is a graph database.
+C: # cluster leaves -> summarize -> repeat to the root
+
+@ Neo4j | 5
+D: A popular property graph database queried with Cypher, which also supports vector indexes.
+T: Neo4j supports vector indexes on node properties.
+F: Neo4j is a relational database queried with SQL only.
+C: CALL db.index.vector.queryNodes('chunk_embeddings', 5, $qvec)
+
+@ Cypher | 5
+D: A declarative graph query language using ASCII-art patterns like (a)-[:REL]->(b).
+T: In Cypher, () denotes a node and -[]-> a relationship.
+F: Cypher uses SELECT ... FROM ... JOIN syntax.
+C: MATCH (p:Person)-[:FOUNDED]->(c:Company) RETURN p.name, c.name
+B: ____ (p:Person)-[:FOUNDED]->(c:Company)\nRETURN p.name ;; MATCH ;; SELECT ;; FIND ;; QUERY
+
+@ MERGE | 5
+D: Cypher clause that matches a pattern or creates it if it does not exist, enabling idempotent ingestion.
+U: Re-running ingestion must not create duplicate company nodes.
+T: MERGE creates the pattern only if it is not already present.
+F: MERGE always creates a new node, like CREATE.
+C: MERGE (c:Company {name: "Acme"})
+B: ____ (c:Company {name: "Acme"})   // create only if missing ;; MERGE ;; CREATE ;; MATCH ;; UPSERT
+
+@ CREATE | 5
+D: Cypher clause that always creates new nodes or relationships.
+T: Running the same CREATE twice creates duplicates.
+F: CREATE checks for existing nodes and skips duplicates.
+C: CREATE (a:Person {name: "Ada"})
+
+@ Variable-length path | 5
+D: A Cypher pattern like -[*1..3]- that matches paths of a range of hops.
+T: [*1..3] matches paths of one to three relationships.
+F: [*1..3] matches exactly four hops.
+C: MATCH (a:Person {name: "Ada"})-[*1..3]-(x) RETURN DISTINCT x
+
+@ shortestPath | 5
+D: Cypher function returning the shortest path between two nodes.
+T: length(p) on a shortest path returns its number of relationships.
+F: shortestPath returns the longest possible path.
+C: MATCH p = shortestPath((a)-[*]-(b)) RETURN length(p)
+
+@ OPTIONAL MATCH | 5
+D: Cypher clause that keeps rows even when the pattern is missing, like a left outer join.
+T: OPTIONAL MATCH returns null for missing parts instead of dropping the row.
+F: OPTIONAL MATCH deletes rows that don't match.
+C: MATCH (c:Company) OPTIONAL MATCH (c)-[:MAKES]->(p) RETURN c.name, p.name
+
+@ WITH clause | 5
+D: Cypher clause that chains query parts, passing variables and aggregates forward.
+T: WITH is used to filter on aggregates before continuing a query.
+F: WITH creates new relationships.
+C: MATCH (c)-[:MAKES]->(p) WITH c, count(p) AS n WHERE n > 2 RETURN c.name
+
+@ Text2Cypher | 6
+D: Having an LLM translate a natural-language question into a Cypher query using the graph schema.
+U: Users ask "How many products does Acme make?" over a curated product graph.
+T: Providing the graph schema and few-shot examples improves Text2Cypher accuracy.
+F: Text2Cypher works best without knowing the schema.
+C: chain = GraphCypherQAChain.from_llm(llm=model, graph=graph, validate_cypher=True, allow_dangerous_requests=True)
+
+@ Read-only DB user | 6
+D: A database account without write permissions used to run LLM-generated queries safely.
+T: LLM-generated Cypher should run under a read-only user.
+F: LLM-generated queries should run with admin privileges for convenience.
+C: # GRANT read-only role to the Text2Cypher connection
+
+@ GraphCypherQAChain | 6
+D: LangChain chain that generates Cypher from a question, runs it on Neo4j and answers from the results.
+T: refresh_schema() gives the chain the labels, relationship types and properties.
+F: GraphCypherQAChain stores vectors in Pinecone.
+C: graph = Neo4jGraph(url="bolt://localhost:7687", username="neo4j", password="...")\ngraph.refresh_schema()
+
+@ VectorContextRetriever | 6
+D: LlamaIndex property-graph retriever that finds nodes by vector similarity and then expands their paths.
+T: VectorContextRetriever combines vector search with graph expansion.
+F: VectorContextRetriever never uses embeddings.
+C: from llama_index.core.indices.property_graph import VectorContextRetriever
+
+@ Agentic GraphRAG | 6
+D: Giving an agent vector search, graph neighbourhood and Cypher tools so it chooses per question.
+T: Agentic GraphRAG handles both fuzzy and precise structural questions.
+F: Agentic GraphRAG is limited to a single fixed query.
+C: tools = [vector_search, graph_neighbours, run_cypher]
+
+@ Multi-hop QA benchmarks | 7
+D: Datasets such as HotpotQA, MuSiQue and 2WikiMultiHopQA that test reasoning across several documents.
+T: HotpotQA is a multi-hop question answering benchmark.
+F: HotpotQA measures image classification accuracy.
+C: # evaluate graph RAG on HotpotQA / MuSiQue
+
+@ Comprehensiveness and diversity | 7
+D: LLM-judged criteria used in the GraphRAG paper to compare global answers with vector RAG.
+T: The GraphRAG paper compared answers on comprehensiveness and diversity.
+F: The GraphRAG paper evaluated only BLEU scores.
+C: # pairwise LLM-judged comparisons
+
+@ Query routing for graph RAG | 7
+D: Sending each question to vector, graph or hybrid retrieval depending on its type.
+T: Not every question needs graph retrieval.
+F: All questions should always go through the graph.
+C: route = classify(q)  # "lookup" -> vector, "relational" -> graph
+
+% graph database | 5 | Neo4j; Memgraph; FalkorDB; Amazon Neptune; ArangoDB; Kùzu | graph RAG method
+% graph RAG method | 4 | Microsoft GraphRAG; LightRAG; HippoRAG; LazyGraphRAG; KG-augmented vector RAG | graph database
+% Microsoft GraphRAG query mode | 3 | local search; global search; DRIFT search; basic search | LightRAG query mode
+% LightRAG query mode | 4 | naive; local; global; hybrid; mix | Microsoft GraphRAG query mode
+% Cypher clause | 5 | MATCH; MERGE; CREATE; WHERE; RETURN; WITH; OPTIONAL MATCH; SET | graph algorithm
+% graph algorithm | 7 | Leiden; Louvain; PageRank; Personalized PageRank; shortest path (BFS); node2vec; degree centrality | Cypher clause
+% graph query language | 1 | Cypher; GQL; SPARQL; Gremlin
+% multi-hop QA benchmark | 7 | HotpotQA; MuSiQue; 2WikiMultiHopQA
+% domain well suited to graph RAG | 7 | supply chains; biomedical research; financial ownership networks; IT dependency maps; legal case relationships
+
+> Microsoft GraphRAG indexing pipeline | 3 | split documents into text units ; extract entities and relationships with an LLM ; detect communities with Leiden ; generate community reports ; embed entity descriptions
+> Global search in GraphRAG | 3 | select community reports at a chosen level ; map: each report produces partial answers with importance scores ; keep the most important partial answers ; reduce: combine them into the final answer
+> Building a KG with LLMs | 2 | chunk the documents ; extract entities and relations per chunk ; resolve duplicate entities ; store nodes and edges with provenance

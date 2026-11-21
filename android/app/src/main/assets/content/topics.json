@@ -1,0 +1,1837 @@
+[
+ {
+  "id": "python",
+  "title": "Python for AI Engineers",
+  "short": "The language behind every AI stack — from basics to async, typing and Pydantic",
+  "emoji": "🐍",
+  "color": "#3776AB",
+  "lessons": [
+   {
+    "t": "Python Basics: Values, Types and Variables",
+    "m": 3,
+    "s": [
+     "Dynamic but strong typing",
+     "Core built-in types",
+     "Numbers and operators",
+     "Strings",
+     "Truthiness and identity",
+     "Key takeaways"
+    ],
+    "q": 579
+   },
+   {
+    "t": "Control Flow and Functions",
+    "m": 3,
+    "s": [
+     "Conditionals and loops",
+     "match statements (Python 3.10+)",
+     "Defining functions",
+     "The mutable default trap",
+     "Scope, closures and lambdas",
+     "Key takeaways"
+    ],
+    "q": 345
+   },
+   {
+    "t": "Data Structures and Comprehensions",
+    "m": 3,
+    "s": [
+     "Lists",
+     "Tuples and unpacking",
+     "Dictionaries",
+     "Sets",
+     "Comprehensions",
+     "Copying",
+     "Key takeaways"
+    ],
+    "q": 775
+   },
+   {
+    "t": "Object-Oriented Python and Dataclasses",
+    "m": 3,
+    "s": [
+     "Classes",
+     "Inheritance and super()",
+     "Methods: instance, class and static",
+     "Abstract base classes and protocols",
+     "Dataclasses",
+     "Key takeaways"
+    ],
+    "q": 258
+   },
+   {
+    "t": "Iterators, Generators, Decorators and Context Managers",
+    "m": 3,
+    "s": [
+     "Iterators and generators",
+     "itertools essentials",
+     "Decorators",
+     "Context managers",
+     "Key takeaways"
+    ],
+    "q": 354
+   },
+   {
+    "t": "Type Hints and Pydantic",
+    "m": 3,
+    "s": [
+     "Type hint basics",
+     "Pydantic v2 models",
+     "pydantic-settings",
+     "Key takeaways"
+    ],
+    "q": 204
+   },
+   {
+    "t": "Errors, Logging and Files",
+    "m": 3,
+    "s": [
+     "Exceptions",
+     "Retrying flaky LLM calls",
+     "Logging",
+     "Files, paths and JSON",
+     "Key takeaways"
+    ],
+    "q": 226
+   },
+   {
+    "t": "Async Python and Concurrency",
+    "m": 3,
+    "s": [
+     "async / await",
+     "Limiting concurrency",
+     "Don't block the event loop",
+     "Threads vs processes vs async",
+     "Async generators",
+     "Key takeaways"
+    ],
+    "q": 240
+   },
+   {
+    "t": "Environments, Packaging and Testing",
+    "m": 3,
+    "s": [
+     "Virtual environments and uv",
+     "Modules, packages and imports",
+     "Testing with pytest",
+     "Code quality tools",
+     "Key takeaways"
+    ],
+    "q": 151
+   },
+   {
+    "t": "Modern Python: 3.10 to 3.14 Features",
+    "m": 3,
+    "s": [
+     "Python 3.10–3.12 highlights",
+     "Python 3.13 (Oct 2024)",
+     "Python 3.14 (Oct 2025)",
+     "Useful standard-library tools for AI work",
+     "Key takeaways"
+    ],
+    "q": 168
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 102
+ },
+ {
+  "id": "fastapi",
+  "title": "FastAPI",
+  "short": "Serve models, RAG pipelines and agents as fast, typed, documented APIs",
+  "emoji": "⚡",
+  "color": "#009688",
+  "lessons": [
+   {
+    "t": "Introduction: Your First FastAPI App",
+    "m": 3,
+    "s": [
+     "Why FastAPI?",
+     "Hello world",
+     "ASGI in one paragraph",
+     "Path operations",
+     "def vs async def",
+     "Key takeaways"
+    ],
+    "q": 509
+   },
+   {
+    "t": "Path Parameters, Query Parameters and Validation",
+    "m": 3,
+    "s": [
+     "Path parameters",
+     "Query parameters",
+     "Adding constraints with Annotated",
+     "Headers and cookies",
+     "Key takeaways"
+    ],
+    "q": 769
+   },
+   {
+    "t": "Request Bodies with Pydantic Models",
+    "m": 3,
+    "s": [
+     "Declaring a body",
+     "Mixing body, path and query",
+     "Nested models and lists",
+     "Forms and files",
+     "Key takeaways"
+    ],
+    "q": 324
+   },
+   {
+    "t": "Responses, Status Codes and Errors",
+    "m": 3,
+    "s": [
+     "response_model",
+     "Status codes",
+     "Raising errors",
+     "Custom exception handlers",
+     "Other response classes",
+     "Key takeaways"
+    ],
+    "q": 769
+   },
+   {
+    "t": "Dependency Injection",
+    "m": 3,
+    "s": [
+     "A simple dependency",
+     "Dependencies with yield (setup/teardown)",
+     "Class and settings dependencies",
+     "Router-level and global dependencies",
+     "Overriding in tests",
+     "Key takeaways"
+    ],
+    "q": 159
+   },
+   {
+    "t": "Async, Lifespan, Background Tasks and Middleware",
+    "m": 3,
+    "s": [
+     "Lifespan: load models once",
+     "Background tasks",
+     "Middleware",
+     "CORS",
+     "Key takeaways"
+    ],
+    "q": 276
+   },
+   {
+    "t": "Security: API Keys, OAuth2 and JWT",
+    "m": 3,
+    "s": [
+     "API key header",
+     "OAuth2 password flow with JWT",
+     "Security checklist for LLM APIs",
+     "Key takeaways"
+    ],
+    "q": 208
+   },
+   {
+    "t": "Streaming LLM Output: StreamingResponse, SSE and WebSockets",
+    "m": 3,
+    "s": [
+     "StreamingResponse",
+     "Server-Sent Events (SSE)",
+     "WebSockets",
+     "Choosing",
+     "Key takeaways"
+    ],
+    "q": 164
+   },
+   {
+    "t": "Project Structure, Testing and Deployment",
+    "m": 3,
+    "s": [
+     "Organising with APIRouter",
+     "Testing with TestClient",
+     "Deployment",
+     "A complete mini RAG endpoint",
+     "Key takeaways"
+    ],
+    "q": 122
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 62
+ },
+ {
+  "id": "langchain",
+  "title": "LangChain",
+  "short": "Models, prompts, LCEL, tools, agents with create_agent and middleware, retrieval",
+  "emoji": "🦜",
+  "color": "#1C3C3C",
+  "lessons": [
+   {
+    "t": "LangChain Overview and the v1 Architecture",
+    "m": 3,
+    "s": [
+     "What changed in LangChain 1.0 (Oct 2025)",
+     "The package layout",
+     "How the pieces relate",
+     "Key takeaways"
+    ],
+    "q": 182
+   },
+   {
+    "t": "Chat Models and Messages",
+    "m": 3,
+    "s": [
+     "Initialising a model",
+     "The Runnable methods every model has",
+     "Messages",
+     "Multimodal input",
+     "Rate limits, fallbacks, caching",
+     "Key takeaways"
+    ],
+    "q": 488
+   },
+   {
+    "t": "Prompt Templates",
+    "m": 3,
+    "s": [
+     "PromptTemplate (string)",
+     "ChatPromptTemplate (messages)",
+     "Partial variables and few-shot",
+     "Prompt management",
+     "Key takeaways"
+    ],
+    "q": 461
+   },
+   {
+    "t": "LCEL: The LangChain Expression Language and Runnables",
+    "m": 3,
+    "s": [
+     "A basic chain",
+     "Core runnables",
+     "The classic RAG chain in LCEL",
+     "Runnable superpowers",
+     "When to use LCEL vs LangGraph",
+     "Key takeaways"
+    ],
+    "q": 683
+   },
+   {
+    "t": "Structured Output and Output Parsers",
+    "m": 3,
+    "s": [
+     "with_structured_output (preferred)",
+     "Output parsers",
+     "Structured output in agents",
+     "Key takeaways"
+    ],
+    "q": 251
+   },
+   {
+    "t": "Tools and Tool Calling",
+    "m": 3,
+    "s": [
+     "Defining tools",
+     "Binding tools to a model",
+     "MCP tools",
+     "Key takeaways"
+    ],
+    "q": 161
+   },
+   {
+    "t": "Agents with create_agent and Middleware",
+    "m": 3,
+    "s": [
+     "create_agent",
+     "Middleware: hooks into the loop",
+     "Built-in middleware",
+     "Custom middleware",
+     "Key takeaways"
+    ],
+    "q": 448
+   },
+   {
+    "t": "Retrieval: Loaders, Splitters, Embeddings and Vector Stores",
+    "m": 3,
+    "s": [
+     "1. Load documents",
+     "2. Split into chunks",
+     "3. Embed and store",
+     "4. Retrieve",
+     "5. Retrieval as an agent tool (agentic RAG)",
+     "Key takeaways"
+    ],
+    "q": 467
+   },
+   {
+    "t": "Memory, Streaming and Production with LangSmith",
+    "m": 3,
+    "s": [
+     "Short-term memory (conversation state)",
+     "Long-term memory",
+     "Streaming",
+     "LangSmith: tracing and evaluation",
+     "Production checklist",
+     "Key takeaways"
+    ],
+    "q": 159
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 66
+ },
+ {
+  "id": "langgraph",
+  "title": "LangGraph",
+  "short": "Stateful, controllable agents as graphs — persistence, interrupts, multi-agent",
+  "emoji": "🕸️",
+  "color": "#7B1FA2",
+  "lessons": [
+   {
+    "t": "Why LangGraph? Agents as State Machines",
+    "m": 3,
+    "s": [
+     "What LangGraph gives you",
+     "Mental model",
+     "Key takeaways"
+    ],
+    "q": 107
+   },
+   {
+    "t": "State, Nodes and Edges",
+    "m": 3,
+    "s": [
+     "Your first graph",
+     "Rules worth memorising",
+     "Input/output schemas and private state",
+     "Runtime context",
+     "Key takeaways"
+    ],
+    "q": 399
+   },
+   {
+    "t": "Reducers and Message State",
+    "m": 3,
+    "s": [
+     "Reducers merge updates",
+     "add_messages: the chat reducer",
+     "Parallel writes need reducers",
+     "Key takeaways"
+    ],
+    "q": 741
+   },
+   {
+    "t": "Conditional Edges, Routing and Loops",
+    "m": 3,
+    "s": [
+     "Routing functions",
+     "A loop with an exit condition",
+     "Recursion limit",
+     "Command: update state and route in one return",
+     "Key takeaways"
+    ],
+    "q": 657
+   },
+   {
+    "t": "Building a Tool-Calling (ReAct) Agent from Scratch",
+    "m": 3,
+    "s": [
+     "Writing tools_condition yourself",
+     "Prebuilt vs custom",
+     "Key takeaways"
+    ],
+    "q": 108
+   },
+   {
+    "t": "Persistence, Threads and Memory",
+    "m": 3,
+    "s": [
+     "Checkpointers",
+     "Inspecting and time-travelling",
+     "Durability modes",
+     "Long-term memory with stores",
+     "Key takeaways"
+    ],
+    "q": 451
+   },
+   {
+    "t": "Human-in-the-Loop: interrupt and Command(resume)",
+    "m": 3,
+    "s": [
+     "interrupt()",
+     "Important semantics",
+     "Common HITL patterns",
+     "Key takeaways"
+    ],
+    "q": 187
+   },
+   {
+    "t": "Multi-Agent Systems, Subgraphs and the Send API",
+    "m": 3,
+    "s": [
+     "Subgraphs",
+     "Multi-agent architectures",
+     "Map-reduce with Send",
+     "Key takeaways"
+    ],
+    "q": 300
+   },
+   {
+    "t": "Streaming, the Functional API and Deployment",
+    "m": 3,
+    "s": [
+     "Stream modes",
+     "The Functional API",
+     "Reliability features",
+     "Deployment",
+     "Key takeaways"
+    ],
+    "q": 350
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 55
+ },
+ {
+  "id": "langfuse",
+  "title": "Langfuse",
+  "short": "Open-source LLM observability — traces, prompts, evaluations, datasets and cost",
+  "emoji": "🪢",
+  "color": "#E65100",
+  "lessons": [
+   {
+    "t": "LLM Observability and What Langfuse Is",
+    "m": 3,
+    "s": [
+     "Langfuse in one sentence",
+     "Core features",
+     "Why not just logs?",
+     "Integrations at a glance",
+     "Key takeaways"
+    ],
+    "q": 65
+   },
+   {
+    "t": "Setup, Architecture and Data Model",
+    "m": 3,
+    "s": [
+     "Getting started",
+     "The data model",
+     "Architecture (self-hosting)",
+     "SDK generations",
+     "Key takeaways"
+    ],
+    "q": 609
+   },
+   {
+    "t": "Tracing with @observe and Context Managers",
+    "m": 3,
+    "s": [
+     "The @observe decorator",
+     "Context managers",
+     "Trace-level attributes",
+     "Trace IDs and linking",
+     "Key takeaways"
+    ],
+    "q": 701
+   },
+   {
+    "t": "Framework Integrations",
+    "m": 3,
+    "s": [
+     "OpenAI SDK drop-in",
+     "LangChain and LangGraph",
+     "OpenTelemetry instrumentations",
+     "Other integrations",
+     "Key takeaways"
+    ],
+    "q": 139
+   },
+   {
+    "t": "Sessions, Users, Metadata, Tokens and Cost",
+    "m": 3,
+    "s": [
+     "Sessions",
+     "Users",
+     "Tags, metadata, release, version, environment",
+     "Token usage and cost",
+     "Masking and sampling",
+     "Key takeaways"
+    ],
+    "q": 648
+   },
+   {
+    "t": "Prompt Management",
+    "m": 3,
+    "s": [
+     "Creating and fetching prompts",
+     "Labels and versions",
+     "Performance and reliability",
+     "Linking prompts to traces",
+     "Key takeaways"
+    ],
+    "q": 487
+   },
+   {
+    "t": "Evaluation: Scores, LLM-as-a-Judge, Datasets and Experiments",
+    "m": 3,
+    "s": [
+     "Scores",
+     "Sources of evaluation",
+     "Datasets",
+     "Experiments",
+     "Key takeaways"
+    ],
+    "q": 445
+   },
+   {
+    "t": "Production Patterns and Analytics",
+    "m": 3,
+    "s": [
+     "Short-lived processes",
+     "Performance",
+     "Closing the loop",
+     "Metrics API and exports",
+     "Langfuse vs alternatives",
+     "Key takeaways"
+    ],
+    "q": 206
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 64
+ },
+ {
+  "id": "llamaindex",
+  "title": "LlamaIndex",
+  "short": "Data framework for RAG and agents — documents, indexes, query engines, Workflows",
+  "emoji": "🦙",
+  "color": "#6A1B9A",
+  "lessons": [
+   {
+    "t": "LlamaIndex Overview",
+    "m": 3,
+    "s": [
+     "Where LlamaIndex shines",
+     "Packages",
+     "The five-line RAG",
+     "Key stages of a LlamaIndex app",
+     "Key takeaways"
+    ],
+    "q": 93
+   },
+   {
+    "t": "Documents, Nodes and Data Loading",
+    "m": 3,
+    "s": [
+     "Document vs Node",
+     "Readers",
+     "LlamaParse",
+     "Metadata matters",
+     "Key takeaways"
+    ],
+    "q": 143
+   },
+   {
+    "t": "Node Parsers and the Ingestion Pipeline",
+    "m": 3,
+    "s": [
+     "Node parsers (splitters)",
+     "Global defaults with Settings",
+     "IngestionPipeline",
+     "Key takeaways"
+    ],
+    "q": 323
+   },
+   {
+    "t": "Indexes and Storage",
+    "m": 3,
+    "s": [
+     "Index types",
+     "StorageContext and persistence",
+     "External vector stores",
+     "Property graphs",
+     "Key takeaways"
+    ],
+    "q": 412
+   },
+   {
+    "t": "Retrievers, Postprocessors and Query Engines",
+    "m": 3,
+    "s": [
+     "Retrievers",
+     "Node postprocessors",
+     "Response synthesizers",
+     "Advanced query engines",
+     "Key takeaways"
+    ],
+    "q": 857
+   },
+   {
+    "t": "Chat Engines and Memory",
+    "m": 3,
+    "s": [
+     "Memory",
+     "Streaming chat",
+     "Key takeaways"
+    ],
+    "q": 197
+   },
+   {
+    "t": "Agents in LlamaIndex",
+    "m": 3,
+    "s": [
+     "Tools",
+     "FunctionAgent and ReActAgent",
+     "State with Context",
+     "Multi-agent with AgentWorkflow",
+     "Key takeaways"
+    ],
+    "q": 254
+   },
+   {
+    "t": "Workflows: Event-Driven Orchestration",
+    "m": 3,
+    "s": [
+     "How routing works",
+     "Context superpowers",
+     "Key takeaways"
+    ],
+    "q": 667
+   },
+   {
+    "t": "Evaluation and Observability",
+    "m": 3,
+    "s": [
+     "Response evaluators",
+     "Retrieval evaluation",
+     "Observability",
+     "Key takeaways"
+    ],
+    "q": 354
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 81
+ },
+ {
+  "id": "vector_rag",
+  "title": "Vector RAG",
+  "short": "Retrieval-augmented generation with embeddings, chunking, vector databases and reranking",
+  "emoji": "🧭",
+  "color": "#1565C0",
+  "lessons": [
+   {
+    "t": "Why Retrieval-Augmented Generation?",
+    "m": 3,
+    "s": [
+     "RAG vs fine-tuning vs long context",
+     "Benefits of RAG",
+     "Vector RAG specifically",
+     "Key takeaways"
+    ],
+    "q": 129
+   },
+   {
+    "t": "The RAG Pipeline End to End",
+    "m": 3,
+    "s": [
+     "Offline: indexing",
+     "Online: query time",
+     "The golden rule",
+     "Key takeaways"
+    ],
+    "q": 309
+   },
+   {
+    "t": "Chunking Strategies",
+    "m": 3,
+    "s": [
+     "Common strategies",
+     "Sliding-window arithmetic",
+     "Practical guidance",
+     "Key takeaways"
+    ],
+    "q": 310
+   },
+   {
+    "t": "Similarity Metrics and Vector Math",
+    "m": 3,
+    "s": [
+     "Cosine similarity",
+     "Dot product (inner product)",
+     "Euclidean (L2) distance",
+     "Other metrics",
+     "Choosing a metric",
+     "Key takeaways"
+    ],
+    "q": 862
+   },
+   {
+    "t": "Approximate Nearest Neighbour (ANN) Indexes",
+    "m": 3,
+    "s": [
+     "HNSW — Hierarchical Navigable Small World",
+     "IVF — Inverted File index",
+     "PQ — Product Quantization",
+     "Other options",
+     "Measuring ANN quality",
+     "Memory estimate",
+     "Key takeaways"
+    ],
+    "q": 536
+   },
+   {
+    "t": "Vector Databases",
+    "m": 3,
+    "s": [
+     "Landscape",
+     "pgvector example",
+     "Qdrant example",
+     "Choosing",
+     "Key takeaways"
+    ],
+    "q": 275
+   },
+   {
+    "t": "Metadata Filtering, Multi-Tenancy and Freshness",
+    "m": 3,
+    "s": [
+     "Metadata filtering",
+     "Multi-tenancy and security",
+     "Keeping the index fresh",
+     "Self-querying",
+     "Key takeaways"
+    ],
+    "q": 127
+   },
+   {
+    "t": "Prompting, Grounding and Citations",
+    "m": 3,
+    "s": [
+     "A solid RAG prompt",
+     "Context assembly tips",
+     "Generation settings",
+     "Key takeaways"
+    ],
+    "q": 96
+   },
+   {
+    "t": "Reranking and Retrieval Evaluation",
+    "m": 3,
+    "s": [
+     "Two-stage retrieval",
+     "Retrieval metrics",
+     "End-to-end evaluation",
+     "Common failure modes and fixes",
+     "Key takeaways"
+    ],
+    "q": 656
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 57
+ },
+ {
+  "id": "graph_rag",
+  "title": "Graph RAG",
+  "short": "Knowledge graphs for multi-hop and global questions — GraphRAG, LightRAG, Neo4j, Cypher",
+  "emoji": "🔗",
+  "color": "#2E7D32",
+  "lessons": [
+   {
+    "t": "Knowledge Graph Fundamentals",
+    "m": 3,
+    "s": [
+     "Two main graph models",
+     "Graph vocabulary",
+     "Why graphs help RAG",
+     "Key takeaways"
+    ],
+    "q": 903
+   },
+   {
+    "t": "Building Knowledge Graphs with LLMs",
+    "m": 3,
+    "s": [
+     "The extraction pipeline",
+     "Schema-guided vs schema-free",
+     "Quality and cost concerns",
+     "Key takeaways"
+    ],
+    "q": 148
+   },
+   {
+    "t": "Microsoft GraphRAG",
+    "m": 3,
+    "s": [
+     "Indexing pipeline",
+     "Query modes",
+     "Why community summaries matter",
+     "Trade-offs",
+     "Key takeaways"
+    ],
+    "q": 355
+   },
+   {
+    "t": "LightRAG and Other Graph-Based RAG Variants",
+    "m": 3,
+    "s": [
+     "LightRAG",
+     "HippoRAG",
+     "Other patterns",
+     "Choosing a variant",
+     "Key takeaways"
+    ],
+    "q": 297
+   },
+   {
+    "t": "Graph Databases and Cypher",
+    "m": 3,
+    "s": [
+     "Neo4j and Cypher basics",
+     "Vector + graph in one database",
+     "Key takeaways"
+    ],
+    "q": 923
+   },
+   {
+    "t": "Text2Cypher and GraphRAG with LangChain/LlamaIndex",
+    "m": 3,
+    "s": [
+     "Text2Cypher",
+     "LlamaIndex PropertyGraphIndex retrievers",
+     "Agentic GraphRAG",
+     "Key takeaways"
+    ],
+    "q": 133
+   },
+   {
+    "t": "Evaluating Graph RAG and When to Use It",
+    "m": 3,
+    "s": [
+     "What to measure",
+     "When Graph RAG is worth it",
+     "Graph algorithms you may use",
+     "A pragmatic architecture",
+     "Key takeaways"
+    ],
+    "q": 541
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 49
+ },
+ {
+  "id": "hybrid_rag",
+  "title": "Hybrid RAG",
+  "short": "Combine keyword (BM25/sparse) and semantic (dense) retrieval with fusion and reranking",
+  "emoji": "🧬",
+  "color": "#AD1457",
+  "lessons": [
+   {
+    "t": "Lexical vs Semantic Retrieval",
+    "m": 3,
+    "s": [
+     "Lexical (keyword) retrieval",
+     "Semantic (dense) retrieval",
+     "Hybrid retrieval",
+     "Key takeaways"
+    ],
+    "q": 450
+   },
+   {
+    "t": "BM25 and Sparse Retrieval",
+    "m": 3,
+    "s": [
+     "TF-IDF intuition",
+     "BM25",
+     "Learned sparse retrieval",
+     "Sparse vs dense vectors",
+     "Key takeaways"
+    ],
+    "q": 560
+   },
+   {
+    "t": "Fusion Methods: RRF and Weighted Scores",
+    "m": 3,
+    "s": [
+     "Reciprocal Rank Fusion (RRF)",
+     "Weighted (convex) combination",
+     "Which one?",
+     "Key takeaways"
+    ],
+    "q": 1148
+   },
+   {
+    "t": "Implementing Hybrid Search",
+    "m": 3,
+    "s": [
+     "LangChain EnsembleRetriever",
+     "Weaviate",
+     "Qdrant (dense + sparse with server-side fusion)",
+     "Elasticsearch / OpenSearch",
+     "Postgres: pgvector + full-text search",
+     "Key takeaways"
+    ],
+    "q": 246
+   },
+   {
+    "t": "Reranking: Cross-Encoders and Late Interaction",
+    "m": 3,
+    "s": [
+     "Bi-encoder vs cross-encoder",
+     "Late interaction (ColBERT)",
+     "LLM rerankers",
+     "Key takeaways"
+    ],
+    "q": 217
+   },
+   {
+    "t": "Query Understanding: Rewriting, HyDE and Multi-Query",
+    "m": 3,
+    "s": [
+     "Query rewriting",
+     "Multi-query",
+     "HyDE — Hypothetical Document Embeddings",
+     "Query expansion for BM25",
+     "Query routing",
+     "Key takeaways"
+    ],
+    "q": 193
+   },
+   {
+    "t": "Tuning and Evaluating Hybrid Systems",
+    "m": 3,
+    "s": [
+     "What to tune",
+     "How to evaluate",
+     "Worked tuning example",
+     "Production tips",
+     "Key takeaways"
+    ],
+    "q": 486
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 39
+ },
+ {
+  "id": "rag_architectures",
+  "title": "RAG Architectures",
+  "short": "Naive to agentic — query transforms, routing, hierarchical, corrective, self-reflective, multimodal",
+  "emoji": "🏗️",
+  "color": "#4E342E",
+  "lessons": [
+   {
+    "t": "Naive, Advanced and Modular RAG",
+    "m": 3,
+    "s": [
+     "Naive RAG",
+     "Advanced RAG",
+     "Modular RAG",
+     "A mental checklist for any architecture",
+     "Key takeaways"
+    ],
+    "q": 248
+   },
+   {
+    "t": "Query Transformation Architectures",
+    "m": 3,
+    "s": [
+     "Multi-query retrieval",
+     "RAG-Fusion",
+     "HyDE (Hypothetical Document Embeddings)",
+     "Step-back prompting",
+     "Query decomposition (sub-questions)",
+     "Example: multi-query in LangGraph-style pseudocode",
+     "Key takeaways"
+    ],
+    "q": 390
+   },
+   {
+    "t": "Routing and Multi-Source RAG",
+    "m": 3,
+    "s": [
+     "Routing strategies",
+     "Multi-index patterns",
+     "Example: support assistant",
+     "Key takeaways"
+    ],
+    "q": 214
+   },
+   {
+    "t": "Hierarchical Retrieval: Parent-Document, Sentence Window, Auto-Merging and RAPTOR",
+    "m": 3,
+    "s": [
+     "Parent-document (small-to-big) retrieval",
+     "Sentence-window retrieval",
+     "Auto-merging retrieval",
+     "Multi-vector / summary indexing",
+     "RAPTOR",
+     "Key takeaways"
+    ],
+    "q": 941
+   },
+   {
+    "t": "Contextual Retrieval and Late Chunking",
+    "m": 3,
+    "s": [
+     "Contextual retrieval (Anthropic, 2024)",
+     "Late chunking",
+     "Comparison",
+     "Key takeaways"
+    ],
+    "q": 235
+   },
+   {
+    "t": "Corrective RAG (CRAG)",
+    "m": 3,
+    "s": [
+     "The flow",
+     "CRAG in LangGraph",
+     "Why it helps",
+     "Key takeaways"
+    ],
+    "q": 258
+   },
+   {
+    "t": "Self-RAG and Adaptive RAG",
+    "m": 3,
+    "s": [
+     "Self-RAG",
+     "Self-RAG-style loops without fine-tuning",
+     "Adaptive RAG",
+     "Iterative / multi-hop retrieval",
+     "Key takeaways"
+    ],
+    "q": 339
+   },
+   {
+    "t": "Agentic RAG",
+    "m": 3,
+    "s": [
+     "Capabilities over fixed pipelines",
+     "Example with LangChain create_agent",
+     "Patterns",
+     "Trade-offs",
+     "Key takeaways"
+    ],
+    "q": 107
+   },
+   {
+    "t": "Multimodal RAG",
+    "m": 3,
+    "s": [
+     "Three approaches",
+     "ColPali",
+     "Tables",
+     "Example flow",
+     "Key takeaways"
+    ],
+    "q": 215
+   },
+   {
+    "t": "Long Context, Cache-Augmented Generation and Production Choices",
+    "m": 3,
+    "s": [
+     "RAG vs long context",
+     "Cache-Augmented Generation (CAG)",
+     "Choosing an architecture",
+     "Production concerns",
+     "Key takeaways"
+    ],
+    "q": 353
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 49
+ },
+ {
+  "id": "agentic_ai",
+  "title": "Agentic AI & Frameworks",
+  "short": "Agent loops, tools, memory, multi-agent patterns — CrewAI, OpenAI Agents SDK, ADK, MAF and more",
+  "emoji": "🤖",
+  "color": "#C62828",
+  "lessons": [
+   {
+    "t": "What Is an AI Agent?",
+    "m": 3,
+    "s": [
+     "Workflows vs agents",
+     "The agent loop",
+     "Levels of autonomy",
+     "Core components",
+     "Key takeaways"
+    ],
+    "q": 301
+   },
+   {
+    "t": "Reasoning Patterns: ReAct, Plan-and-Execute, Reflection",
+    "m": 3,
+    "s": [
+     "ReAct (Reason + Act)",
+     "Plan-and-Execute",
+     "Reflection and self-critique",
+     "Tree/graph search over thoughts",
+     "Choosing",
+     "Key takeaways"
+    ],
+    "q": 273
+   },
+   {
+    "t": "Tools, Function Calling and MCP",
+    "m": 3,
+    "s": [
+     "Function calling",
+     "Model Context Protocol (MCP)",
+     "Code execution as a tool",
+     "Key takeaways"
+    ],
+    "q": 412
+   },
+   {
+    "t": "Memory for Agents",
+    "m": 3,
+    "s": [
+     "Types of memory",
+     "Managing the context window",
+     "Writing memories",
+     "Tools and frameworks",
+     "Key takeaways"
+    ],
+    "q": 253
+   },
+   {
+    "t": "Multi-Agent Patterns",
+    "m": 3,
+    "s": [
+     "Common topologies",
+     "Design principles",
+     "When multi-agent is worth it",
+     "Key takeaways"
+    ],
+    "q": 362
+   },
+   {
+    "t": "CrewAI: Agents, Tasks, Crews and Flows",
+    "m": 3,
+    "s": [
+     "Core concepts",
+     "A two-agent crew",
+     "YAML projects",
+     "Flows",
+     "Key takeaways"
+    ],
+    "q": 311
+   },
+   {
+    "t": "OpenAI Agents SDK",
+    "m": 3,
+    "s": [
+     "Primitives",
+     "Key takeaways"
+    ],
+    "q": 246
+   },
+   {
+    "t": "Google ADK, Microsoft Agent Framework and AutoGen",
+    "m": 3,
+    "s": [
+     "Google Agent Development Kit (ADK)",
+     "Microsoft Agent Framework (MAF)",
+     "AutoGen",
+     "Key takeaways"
+    ],
+    "q": 266
+   },
+   {
+    "t": "smolagents, Pydantic AI and Other Frameworks",
+    "m": 3,
+    "s": [
+     "Hugging Face smolagents",
+     "Pydantic AI",
+     "More frameworks",
+     "Key takeaways"
+    ],
+    "q": 187
+   },
+   {
+    "t": "A2A, Evaluation and Safety of Agents",
+    "m": 3,
+    "s": [
+     "Agent2Agent (A2A) protocol",
+     "Evaluating agents",
+     "Safety and guardrails",
+     "Key takeaways"
+    ],
+    "q": 689
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 100
+ },
+ {
+  "id": "embeddings",
+  "title": "Text Embedding Models",
+  "short": "How embeddings work, training, similarity, the model landscape, MTEB, Matryoshka and quantization",
+  "emoji": "📐",
+  "color": "#00838F",
+  "lessons": [
+   {
+    "t": "What Are Embeddings?",
+    "m": 3,
+    "s": [
+     "What embeddings are used for",
+     "Properties to know",
+     "Key takeaways"
+    ],
+    "q": 468
+   },
+   {
+    "t": "From Word Vectors to Transformer Embeddings",
+    "m": 3,
+    "s": [
+     "Static word embeddings",
+     "Contextual embeddings",
+     "Sentence-BERT (SBERT)",
+     "Pooling strategies",
+     "LLM-based embedders",
+     "Key takeaways"
+    ],
+    "q": 314
+   },
+   {
+    "t": "Training Embeddings: Contrastive Learning",
+    "m": 3,
+    "s": [
+     "Bi-encoders",
+     "Contrastive objective (InfoNCE)",
+     "Typical training stages",
+     "Fine-tuning your own",
+     "Key takeaways"
+    ],
+    "q": 240
+   },
+   {
+    "t": "Similarity, Normalisation and Vector Arithmetic",
+    "m": 3,
+    "s": [
+     "Measures",
+     "Normalisation",
+     "Interpreting scores",
+     "Anisotropy",
+     "Key takeaways"
+    ],
+    "q": 943
+   },
+   {
+    "t": "The Embedding Model Landscape (2026)",
+    "m": 3,
+    "s": [
+     "Proprietary APIs",
+     "Open-weight models",
+     "Choosing a model",
+     "Key takeaways"
+    ],
+    "q": 422
+   },
+   {
+    "t": "Benchmarks: MTEB and Beyond",
+    "m": 3,
+    "s": [
+     "MTEB",
+     "Reading leaderboards wisely",
+     "A minimal custom evaluation",
+     "Key takeaways"
+    ],
+    "q": 205
+   },
+   {
+    "t": "Dimensions, Matryoshka Embeddings and Quantization",
+    "m": 3,
+    "s": [
+     "Storage arithmetic",
+     "Matryoshka Representation Learning (MRL)",
+     "Quantization",
+     "A combined recipe at scale",
+     "Key takeaways"
+    ],
+    "q": 554
+   },
+   {
+    "t": "Using Embeddings Well in Practice",
+    "m": 3,
+    "s": [
+     "Query/document instructions and prefixes",
+     "Batching, caching and throughput",
+     "Multilingual and cross-lingual",
+     "Pitfalls",
+     "Key takeaways"
+    ],
+    "q": 154
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 57
+ },
+ {
+  "id": "llm_models",
+  "title": "LLM Models",
+  "short": "Transformers, tokens, training, decoding, model families, reasoning, MoE, quantization, fine-tuning",
+  "emoji": "🧠",
+  "color": "#283593",
+  "lessons": [
+   {
+    "t": "The Transformer Architecture",
+    "m": 3,
+    "s": [
+     "Building blocks",
+     "Scaled dot-product attention",
+     "Encoder, decoder, encoder-decoder",
+     "Efficiency variants",
+     "Key takeaways"
+    ],
+    "q": 313
+   },
+   {
+    "t": "Tokens and Tokenization",
+    "m": 3,
+    "s": [
+     "Algorithms",
+     "Rules of thumb",
+     "Why tokens matter",
+     "Cost arithmetic",
+     "Key takeaways"
+    ],
+    "q": 366
+   },
+   {
+    "t": "How LLMs Are Trained",
+    "m": 3,
+    "s": [
+     "1. Pre-training",
+     "2. Supervised fine-tuning (SFT) / instruction tuning",
+     "3. Preference alignment",
+     "4. Reinforcement learning for reasoning",
+     "Post-training extras",
+     "Key takeaways"
+    ],
+    "q": 220
+   },
+   {
+    "t": "Decoding and Generation Parameters",
+    "m": 3,
+    "s": [
+     "Temperature",
+     "Truncation strategies",
+     "Other controls",
+     "Greedy vs sampling vs beam search",
+     "Recommended defaults",
+     "Key takeaways"
+    ],
+    "q": 582
+   },
+   {
+    "t": "Context Windows, KV Cache and Inference Performance",
+    "m": 3,
+    "s": [
+     "Context window",
+     "Prefill vs decode",
+     "KV cache",
+     "Prompt caching",
+     "Serving optimisations",
+     "Key takeaways"
+    ],
+    "q": 616
+   },
+   {
+    "t": "The Model Landscape",
+    "m": 3,
+    "s": [
+     "Closed / proprietary families (API)",
+     "Open-weight families",
+     "Choosing a model",
+     "Key takeaways"
+    ],
+    "q": 352
+   },
+   {
+    "t": "Reasoning Models and Mixture of Experts",
+    "m": 3,
+    "s": [
+     "Reasoning (\"thinking\") models",
+     "Test-time compute scaling",
+     "Mixture of Experts (MoE)",
+     "Multimodality",
+     "Key takeaways"
+    ],
+    "q": 294
+   },
+   {
+    "t": "Running Models Locally: Quantization and Serving",
+    "m": 3,
+    "s": [
+     "Memory for weights",
+     "Quantization methods",
+     "Serving tools",
+     "Key takeaways"
+    ],
+    "q": 324
+   },
+   {
+    "t": "Prompting, Structured Output and Fine-Tuning",
+    "m": 3,
+    "s": [
+     "Prompt engineering essentials",
+     "Structured output and function calling",
+     "When to fine-tune",
+     "Parameter-efficient fine-tuning (PEFT)",
+     "Key takeaways"
+    ],
+    "q": 233
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 85
+ },
+ {
+  "id": "ragas",
+  "title": "RAGAS",
+  "short": "Evaluate RAG and agents — faithfulness, relevancy, context precision/recall, testsets, experiments",
+  "emoji": "📊",
+  "color": "#F9A825",
+  "lessons": [
+   {
+    "t": "Why Evaluate RAG Systems?",
+    "m": 3,
+    "s": [
+     "Why classic metrics fall short",
+     "What is RAGAS?",
+     "The evaluation mindset",
+     "Key takeaways"
+    ],
+    "q": 471
+   },
+   {
+    "t": "Core Metric: Faithfulness",
+    "m": 3,
+    "s": [
+     "How it is computed",
+     "Worked example",
+     "Notes",
+     "Key takeaways"
+    ],
+    "q": 152
+   },
+   {
+    "t": "Core Metrics: Answer Relevancy, Context Precision and Context Recall",
+    "m": 3,
+    "s": [
+     "Answer (Response) Relevancy",
+     "Context Precision",
+     "Context Recall",
+     "Which metric diagnoses what",
+     "Key takeaways"
+    ],
+    "q": 780
+   },
+   {
+    "t": "More Ragas Metrics",
+    "m": 3,
+    "s": [
+     "RAG and retrieval",
+     "Answer correctness against a reference",
+     "Traditional (non-LLM) metrics",
+     "Agent and tool-use metrics",
+     "SQL, summaries and rubrics",
+     "Key takeaways"
+    ],
+    "q": 827
+   },
+   {
+    "t": "Data Structures: Samples and Datasets",
+    "m": 3,
+    "s": [
+     "Field names (current Ragas)",
+     "SingleTurnSample and EvaluationDataset",
+     "MultiTurnSample",
+     "Which metrics need what",
+     "Key takeaways"
+    ],
+    "q": 384
+   },
+   {
+    "t": "The Ragas v0.4 API: Collections, llm_factory and Experiments",
+    "m": 3,
+    "s": [
+     "Setting up LLMs and embeddings",
+     "Scoring with collection metrics",
+     "Experiments",
+     "Legacy evaluate()",
+     "Key takeaways"
+    ],
+    "q": 174
+   },
+   {
+    "t": "Synthetic Test Set Generation",
+    "m": 3,
+    "s": [
+     "How it works",
+     "Query types",
+     "Best practices",
+     "Key takeaways"
+    ],
+    "q": 227
+   },
+   {
+    "t": "Custom Metrics, Judges and Integrations",
+    "m": 3,
+    "s": [
+     "Aspect critics and rubrics",
+     "Making LLM judges reliable",
+     "Integrations",
+     "Interpreting results",
+     "Key takeaways"
+    ],
+    "q": 285
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 60
+ },
+ {
+  "id": "ai_frameworks",
+  "title": "AI Frameworks Landscape",
+  "short": "PyTorch to vLLM, Hugging Face, Haystack, DSPy, Semantic Kernel, guardrails, gateways and protocols",
+  "emoji": "🧰",
+  "color": "#455A64",
+  "lessons": [
+   {
+    "t": "The Modern AI Stack: A Map",
+    "m": 3,
+    "s": [
+     "Key takeaways"
+    ],
+    "q": 30
+   },
+   {
+    "t": "Deep Learning Frameworks: PyTorch, TensorFlow and JAX",
+    "m": 3,
+    "s": [
+     "PyTorch",
+     "TensorFlow and Keras",
+     "JAX",
+     "ONNX",
+     "Key takeaways"
+    ],
+    "q": 810
+   },
+   {
+    "t": "The Hugging Face Ecosystem",
+    "m": 3,
+    "s": [
+     "Key takeaways"
+    ],
+    "q": 371
+   },
+   {
+    "t": "LLM Application Frameworks",
+    "m": 3,
+    "s": [
+     "LangChain",
+     "LlamaIndex",
+     "Haystack (deepset)",
+     "Semantic Kernel (Microsoft)",
+     "DSPy (Stanford)",
+     "Comparison",
+     "Key takeaways"
+    ],
+    "q": 233
+   },
+   {
+    "t": "Agent Frameworks Compared",
+    "m": 3,
+    "s": [
+     "Selection criteria",
+     "Key takeaways"
+    ],
+    "q": 287
+   },
+   {
+    "t": "Inference Engines and Model Gateways",
+    "m": 3,
+    "s": [
+     "Self-hosted inference engines",
+     "Managed inference",
+     "Gateways and routers",
+     "The OpenAI-compatible API as a lingua franca",
+     "Key takeaways"
+    ],
+    "q": 571
+   },
+   {
+    "t": "Structured Output and Guardrails",
+    "m": 3,
+    "s": [
+     "Structured output libraries",
+     "Guardrails",
+     "Defence in depth",
+     "Key takeaways"
+    ],
+    "q": 288
+   },
+   {
+    "t": "Evaluation and Observability Tools",
+    "m": 3,
+    "s": [
+     "What to evaluate",
+     "OpenTelemetry for GenAI",
+     "Key takeaways"
+    ],
+    "q": 345
+   },
+   {
+    "t": "Protocols and Choosing Your Stack",
+    "m": 3,
+    "s": [
+     "Protocols",
+     "Reference stacks",
+     "Decision checklist",
+     "Key takeaways"
+    ],
+    "q": 365
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 83
+ },
+ {
+  "id": "mcp",
+  "title": "Model Context Protocol (MCP)",
+  "short": "The open standard connecting AI apps to tools and data: servers, tools, resources, transports and security",
+  "emoji": "🔌",
+  "color": "#5E35B1",
+  "lessons": [
+   {
+    "t": "What MCP Is and Why It Exists",
+    "m": 3,
+    "s": [
+     "MCP in one sentence",
+     "A short history",
+     "What MCP standardises",
+     "MCP vs plain function calling",
+     "Key takeaways"
+    ],
+    "q": 134
+   },
+   {
+    "t": "Architecture: Hosts, Clients, Servers and the Lifecycle",
+    "m": 3,
+    "s": [
+     "The three roles",
+     "Local and remote servers",
+     "The connection lifecycle",
+     "Version negotiation",
+     "Capability negotiation",
+     "Key takeaways"
+    ],
+    "q": 383
+   },
+   {
+    "t": "JSON-RPC Messages and the Base Protocol",
+    "m": 3,
+    "s": [
+     "JSON-RPC 2.0",
+     "Standard error codes",
+     "Both sides send requests",
+     "Utilities",
+     "The _meta field",
+     "Key takeaways"
+    ],
+    "q": 758
+   },
+   {
+    "t": "Tools: Letting the Model Take Actions",
+    "m": 3,
+    "s": [
+     "What a tool is",
+     "Discovering and calling tools",
+     "Tool fields",
+     "Tool results",
+     "Two kinds of errors",
+     "Tool annotations",
+     "Designing good tools",
+     "Key takeaways"
+    ],
+    "q": 586
+   },
+   {
+    "t": "Resources and Prompts",
+    "m": 3,
+    "s": [
+     "Resources: data the app can read",
+     "Resource methods",
+     "URI schemes and templates",
+     "Resource annotations",
+     "Prompts: user-picked templates",
+     "Who controls what",
+     "Key takeaways"
+    ],
+    "q": 330
+   },
+   {
+    "t": "Client Features: Sampling, Roots and Elicitation",
+    "m": 3,
+    "s": [
+     "Sampling: borrowing the host's LLM",
+     "Roots: where the server may work",
+     "Elicitation: asking the user mid-task",
+     "Tasks (experimental)",
+     "Key takeaways"
+    ],
+    "q": 220
+   },
+   {
+    "t": "Transports: stdio and Streamable HTTP",
+    "m": 3,
+    "s": [
+     "stdio (local)",
+     "Streamable HTTP (remote)",
+     "Resumability",
+     "Transport security",
+     "Choosing a transport",
+     "Key takeaways"
+    ],
+    "q": 423
+   },
+   {
+    "t": "Building Servers and Clients in Python",
+    "m": 3,
+    "s": [
+     "Installing the SDK",
+     "A server with FastMCP",
+     "The Context object",
+     "Running over HTTP",
+     "Writing a client",
+     "TypeScript in brief",
+     "Testing and connecting to hosts",
+     "Using MCP tools in agent frameworks",
+     "Key takeaways"
+    ],
+    "q": 215
+   },
+   {
+    "t": "Security, Authorization and Production",
+    "m": 4,
+    "s": [
+     "Authorization for HTTP servers",
+     "Main threats",
+     "Defence-in-depth checklist",
+     "Running MCP in production",
+     "MCP and A2A",
+     "Key takeaways"
+    ],
+    "q": 251
+   }
+  ],
+  "qcount": 3300,
+  "gcount": 107
+ }
+]

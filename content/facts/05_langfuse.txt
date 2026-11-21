@@ -1,0 +1,419 @@
+# Langfuse. Lessons: 1 observability/what, 2 setup/architecture/data model, 3 tracing, 4 integrations, 5 sessions/users/cost, 6 prompt mgmt, 7 evaluation, 8 production
+@ LLM observability | 1
+D: Capturing structured, hierarchical records of inputs, outputs, intermediate steps, latency, tokens, cost and quality for LLM apps.
+U: Users report wrong answers and you need to see which retrieval and LLM steps produced them.
+T: LLM traces are trees of nested steps rather than flat log lines.
+F: Plain print statements give the same insight as structured LLM traces.
+C: @observe()\ndef rag_pipeline(q):\n    docs = retrieve(q)\n    return generate(q, docs)
+
+@ Langfuse | 1
+D: An open-source LLM engineering platform for tracing, prompt management, evaluation, datasets and metrics.
+T: Langfuse can be used as a managed cloud service or self-hosted.
+F: Langfuse is a closed-source tool that can only be used with LangChain.
+C: pip install langfuse
+
+@ Langfuse Cloud regions | 2
+D: Managed Langfuse deployments selected via the base URL, such as the EU and US cloud hosts.
+T: LANGFUSE_BASE_URL selects which Langfuse instance or region the SDK sends data to.
+F: Langfuse Cloud has only one global endpoint that cannot be configured.
+C: export LANGFUSE_BASE_URL="https://cloud.langfuse.com"
+
+@ API key pair | 2
+D: A public key that identifies the project and a secret key that authenticates the SDK.
+T: The Langfuse secret key must stay on the server side.
+F: The Langfuse secret key is safe to embed in a mobile app.
+C: export LANGFUSE_PUBLIC_KEY="pk-lf-..."\nexport LANGFUSE_SECRET_KEY="sk-lf-..."
+
+@ get_client() | 2
+D: Function returning the singleton Langfuse client configured from environment variables.
+T: Modules that call get_client() share the same client instance.
+F: get_client() creates a new network connection on every call and must be cached manually.
+C: from langfuse import get_client\nlangfuse = get_client()
+B: from langfuse import ____\nlangfuse = ____() ;; get_client ;; Client ;; init ;; connect
+
+@ auth_check() | 2
+D: Client method that verifies the configured credentials and host.
+T: auth_check() is useful during setup but should be avoided in hot request paths.
+F: auth_check() must be called before every trace.
+C: langfuse.auth_check()
+
+@ Trace | 2
+D: The record of one end-to-end request or operation, containing a tree of observations.
+T: One chat turn usually corresponds to one trace.
+F: A trace can contain only a single observation.
+C: with langfuse.start_as_current_observation(as_type="span", name="chat-turn"):\n    ...
+
+@ Observation | 2
+D: A step inside a trace, such as a span, generation, event, tool or retriever, which can be nested.
+T: Observations nest to form a tree under the trace.
+F: Observations cannot have children.
+C: with langfuse.start_as_current_observation(as_type="retriever", name="search"):\n    docs = retriever.invoke(q)
+
+@ Generation | 2
+D: An observation type for LLM calls that records model, parameters, token usage and cost.
+T: Use as_type="generation" when the step is an LLM call.
+F: Generations cannot record token usage.
+C: with langfuse.start_as_current_observation(as_type="generation", name="llm", model="gpt-5.5") as gen:\n    gen.update(output=text)
+
+@ Span | 2
+D: An observation type representing any unit of work with a start and end time.
+T: span is the default observation type for start_as_current_observation.
+F: A span has no duration.
+C: with langfuse.start_as_current_observation(as_type="span", name="process"):\n    ...
+
+@ Event | 2
+D: A point-in-time observation without duration, created with create_event.
+T: Events mark moments such as a cache hit or a guardrail trigger.
+F: Events must always contain an LLM call.
+C: langfuse.create_event(name="cache-hit", metadata={"key": k})
+
+@ Semantic observation types | 2
+D: Observation types like agent, tool, chain, retriever, embedding, evaluator and guardrail that make agent traces readable.
+T: as_type="tool" marks a tool call in an agent trace.
+F: Langfuse only supports two observation types.
+C: with langfuse.start_as_current_observation(as_type="tool", name="get_weather"):\n    ...
+
+@ ClickHouse | 2
+D: The OLAP database Langfuse v3+ uses to store traces, observations and scores at high volume.
+T: Self-hosted Langfuse stores trace data in ClickHouse.
+F: Langfuse stores every trace only in SQLite.
+C: # docker compose: langfuse-web, langfuse-worker, postgres, clickhouse, redis, minio
+
+@ PostgreSQL in Langfuse | 2
+D: The transactional database holding users, projects, prompts and configuration in Langfuse.
+T: Prompts and project settings are stored in Postgres.
+F: Postgres is used only as a cache that can be dropped at any time.
+C: DATABASE_URL=postgresql://...
+
+@ Langfuse worker | 2
+D: The container that processes ingested events asynchronously, separate from the web container.
+T: The worker container handles background ingestion processing.
+F: The worker serves the Langfuse UI.
+C: # langfuse-worker processes queued events
+
+@ Blob storage | 2
+D: S3-compatible storage used by Langfuse for raw events and large payloads.
+T: Self-hosted Langfuse needs S3-compatible object storage such as MinIO or S3.
+F: Langfuse cannot store large payloads.
+C: LANGFUSE_S3_EVENT_UPLOAD_BUCKET=langfuse
+
+@ OpenTelemetry-based SDK | 2
+D: The Python SDK generation (v3+) built on OpenTelemetry for context propagation and export.
+T: Because the SDK is OTel-based, OpenTelemetry instrumentations appear in Langfuse traces.
+F: The Langfuse Python SDK v3 removed OpenTelemetry support.
+C: from opentelemetry.instrumentation.anthropic import AnthropicInstrumentor\nAnthropicInstrumentor().instrument()
+
+@ @observe decorator | 3
+D: Decorator that records a function call as an observation, capturing name, inputs, outputs, timing and errors, nested automatically.
+U: You want each function in your RAG pipeline to show up as a nested step with minimal code.
+T: Nested calls to @observe functions become child observations automatically.
+F: @observe only works on synchronous functions.
+C: @observe()\ndef retrieve(q):\n    ...\n@observe()\ndef pipeline(q):\n    return retrieve(q)
+B: from langfuse import observe\n@____()\ndef retrieve(query):\n    ... ;; observe ;; trace ;; span ;; log
+
+@ capture_input / capture_output | 3
+D: @observe options that disable automatic recording of arguments or return values.
+U: A function handles medical records that must not be sent to the tracing backend.
+T: @observe(capture_input=False) stops recording the function's arguments.
+F: capture_output=False prevents the function from returning a value.
+C: @observe(capture_input=False, capture_output=False)\ndef handle_sensitive(record): ...
+
+@ start_as_current_observation | 3
+D: Context manager that creates an observation and makes it the active parent for nested work, ending it automatically.
+T: Observations created inside the with block become its children.
+F: You must call .end() manually when using start_as_current_observation as a context manager.
+C: with langfuse.start_as_current_observation(as_type="span", name="outer") as root:\n    with langfuse.start_as_current_observation(as_type="generation", name="llm"):\n        ...
+B: with langfuse.____(as_type="span", name="handle-request") as root:\n    ... ;; start_as_current_observation ;; start_observation ;; create_trace ;; observe
+
+@ start_observation | 3
+D: Creates an observation without changing the active context, so it must be ended manually.
+T: start_observation requires an explicit .end() call.
+F: start_observation automatically becomes the parent of everything created afterwards.
+C: obs = langfuse.start_observation(name="manual")\n...\nobs.end()
+
+@ update_current_span | 3
+D: Updates the currently active observation from deep inside your code.
+T: update_current_span(metadata=...) adds data to the active span without passing it around.
+F: update_current_span creates a brand new trace.
+C: langfuse.update_current_span(metadata={"step1_complete": True})
+
+@ propagate_attributes | 3
+D: Context manager that applies trace-level attributes like user_id, session_id, tags and metadata to all observations inside it.
+U: Every observation of a request must carry the user and session ids.
+T: propagate_attributes(user_id=..., session_id=...) applies to child observations created in its scope.
+F: propagate_attributes only affects observations created before it was entered.
+C: with propagate_attributes(user_id="user-123", session_id="sess-9", tags=["beta"]):\n    rag_pipeline("hello")
+
+@ flush() | 3
+D: Sends all buffered events immediately; needed before short-lived processes exit.
+U: A serverless function finishes before traces appear in Langfuse.
+T: Scripts and serverless functions should call flush() before exiting.
+F: flush() deletes all buffered traces without sending them.
+C: get_client().flush()
+
+@ create_trace_id | 3
+D: Creates a W3C-compatible 32-character hex trace id, optionally deterministic from a seed.
+T: create_trace_id(seed="order-77") produces the same id for the same seed.
+F: Langfuse trace ids must be sequential integers.
+C: trace_id = langfuse.create_trace_id(seed="order-77")
+
+@ get_current_trace_id | 3
+D: Returns the id of the active trace so it can be returned to the frontend for later feedback.
+T: Returning the trace id lets a UI attach thumbs-up/down scores later.
+F: get_current_trace_id only works after the trace has been deleted.
+C: trace_id = langfuse.get_current_trace_id()
+
+@ OpenAI drop-in integration | 4
+D: Importing openai from langfuse.openai so every OpenAI SDK call is traced as a generation.
+U: You want tracing for an existing OpenAI-based app with a one-line change.
+T: from langfuse.openai import openai traces chat completions automatically.
+F: The drop-in integration requires rewriting every API call.
+C: from langfuse.openai import openai\nclient = openai.OpenAI()
+
+@ LangChain CallbackHandler | 4
+D: The Langfuse callback handler passed in config callbacks to trace LangChain and LangGraph runs.
+U: You need traces for a LangGraph agent's nodes, LLM calls and tools.
+T: CallbackHandler is passed via config={"callbacks": [handler]}.
+F: CallbackHandler must be added as a node in the graph.
+C: from langfuse.langchain import CallbackHandler\nhandler = CallbackHandler()\nagent.invoke(inputs, config={"callbacks": [handler]})
+
+@ OpenInference instrumentation | 4
+D: OpenTelemetry instrumentations (e.g. for LlamaIndex) whose spans are captured by the Langfuse OTel-based SDK.
+T: LlamaIndexInstrumentor().instrument() makes LlamaIndex steps appear in Langfuse.
+F: OpenInference only works with Arize products and never with Langfuse.
+C: from openinference.instrumentation.llama_index import LlamaIndexInstrumentor\nLlamaIndexInstrumentor().instrument()
+
+@ OTLP endpoint | 4
+D: Langfuse's OpenTelemetry ingestion endpoint that accepts traces from any language without the SDK.
+T: Any OpenTelemetry exporter can send traces to Langfuse's OTLP endpoint.
+F: Langfuse only accepts traces from Python.
+C: OTEL_EXPORTER_OTLP_ENDPOINT=https://cloud.langfuse.com/api/public/otel
+
+@ LiteLLM integration | 4
+D: Using LiteLLM callbacks or its proxy to send traces for 100+ providers to Langfuse.
+T: LiteLLM can forward usage from many providers to Langfuse.
+F: LiteLLM traces can only be viewed in LiteLLM itself.
+C: litellm.callbacks = ["langfuse"]
+
+@ Session | 5
+D: A group of traces sharing a session_id, typically one multi-turn conversation.
+U: You want to replay a whole chat conversation turn by turn.
+T: Traces with the same session_id are shown together as a session.
+F: A session can only contain one trace.
+C: with propagate_attributes(session_id="chat-42"):\n    handle_turn(msg)
+
+@ user_id | 5
+D: Trace attribute that attributes usage, cost and scores to an end user.
+U: You need per-user cost reports to enforce quotas.
+T: Setting user_id enables per-user analytics in Langfuse.
+F: user_id must be the user's email address.
+C: with propagate_attributes(user_id="user-123"):\n    ...
+
+@ Tags | 5
+D: Short labels on traces used for filtering, such as "rag" or "beta".
+T: Tags make it easy to filter traces in the UI.
+F: Tags change the model used for a generation.
+C: propagate_attributes(tags=["rag", "beta"])
+
+@ Environment attribute | 5
+D: Separates data from production, staging and development, e.g. via LANGFUSE_TRACING_ENVIRONMENT.
+T: LANGFUSE_TRACING_ENVIRONMENT=production labels traces with the production environment.
+F: Environments require separate Langfuse servers.
+C: export LANGFUSE_TRACING_ENVIRONMENT=production
+
+@ usage_details | 5
+D: Token counts recorded on a generation, such as input, output, cached and reasoning tokens.
+T: usage_details can include cached and reasoning tokens in addition to input and output.
+F: usage_details stores the model's temperature.
+C: gen.update(usage_details={"input": 1200, "output": 300})
+
+@ Model price definitions | 5
+D: Built-in and custom per-model prices Langfuse uses to infer cost from token usage.
+U: You deploy a fine-tuned model and want Langfuse to compute its cost automatically.
+T: Langfuse infers cost from usage when you do not send cost_details.
+F: Langfuse cannot compute cost unless the provider bills it directly.
+C: gen.update(model="my-finetuned-model", usage_details={"input": 1200, "output": 300})
+
+@ cost_details | 5
+D: Explicit cost values (in USD) sent on a generation instead of relying on inferred pricing.
+T: Sending cost_details overrides the inferred cost for that generation.
+F: cost_details is measured in tokens, not money.
+C: gen.update(cost_details={"input": 0.0012, "output": 0.0009})
+
+@ mask | 5
+D: A client option holding a function that redacts data before it leaves your process.
+U: Emails in user prompts must never be stored in Langfuse.
+T: The mask function runs on inputs and outputs before export.
+F: Masking runs on the Langfuse server after the data has been stored.
+C: langfuse = Langfuse(mask=redact_emails)
+
+@ sample_rate | 5
+D: Client option or LANGFUSE_SAMPLE_RATE setting that keeps only a fraction of traces.
+U: High traffic makes tracing every request too expensive.
+T: Sampling keeps or drops a trace as a whole.
+F: sample_rate=0.2 keeps 80% of traces.
+C: langfuse = Langfuse(sample_rate=0.2)
+
+@ Prompt management | 6
+D: Storing prompts centrally with versions and labels so they can change without redeploying the app.
+U: Product managers need to tweak wording without waiting for a release.
+T: Apps fetch the current prompt at runtime with get_prompt.
+F: Prompt management requires redeploying the app for every prompt change.
+C: prompt = langfuse.get_prompt("rag-answer")
+
+@ create_prompt | 6
+D: SDK method that creates a new prompt version, optionally with labels and model config.
+T: Every create_prompt call with an existing name creates a new version.
+F: create_prompt overwrites the existing version in place.
+C: langfuse.create_prompt(name="rag-answer", type="text", prompt="Context: {{context}}\nQ: {{question}}", labels=["production"])
+
+@ get_prompt | 6
+D: Fetches a prompt by name, by default the version labelled production, or by label or version.
+T: get_prompt("x", label="staging") fetches the version labelled staging.
+F: get_prompt always returns the oldest version.
+C: prompt = langfuse.get_prompt("rag-answer", label="staging")
+B: prompt = langfuse.____("rag-answer", label="production") ;; get_prompt ;; fetch_prompt ;; load_prompt ;; prompt
+
+@ compile() | 6
+D: Prompt client method that fills {{variables}} and returns the final text or chat messages.
+T: compile(context=ctx, question=q) replaces {{context}} and {{question}}.
+F: compile() sends the prompt to the LLM.
+C: text = prompt.compile(context=ctx, question=q)
+
+@ Prompt labels | 6
+D: Movable pointers such as production, staging or latest that reference a specific prompt version.
+U: You want to roll back a bad prompt instantly.
+T: Rolling back means moving the production label to an earlier version.
+F: Labels are permanently attached to a version and cannot move.
+C: # move label "production" from version 5 to version 4
+
+@ latest label | 6
+D: The label automatically pointing to the most recently created prompt version.
+T: latest always points to the newest version.
+F: latest must be moved manually after each new version.
+C: langfuse.get_prompt("rag-answer", label="latest")
+
+@ Prompt version | 6
+D: An immutable, numbered snapshot of a prompt created each time it is saved.
+T: Prompt versions are immutable once created.
+F: Editing a prompt changes its existing version number in place.
+C: langfuse.get_prompt("rag-answer", version=3)
+
+@ Prompt caching in SDK | 6
+D: Client-side caching of fetched prompts with a TTL (60 seconds by default) and background refresh.
+T: Cached prompts mean get_prompt adds no network latency on most calls.
+F: The SDK fetches the prompt over the network on every single call with no cache.
+C: langfuse.get_prompt("rag-answer", cache_ttl_seconds=300)
+
+@ Prompt fallback | 6
+D: A default prompt passed to get_prompt for when Langfuse cannot be reached on first fetch.
+T: fallback= keeps the app working if Langfuse is unavailable.
+F: fallback= deletes the remote prompt.
+C: langfuse.get_prompt("rag-answer", fallback="Answer: {{question}}")
+
+@ Chat prompt | 6
+D: A prompt of type chat that stores a list of role messages and compiles into messages.
+T: Chat prompts compile into a list of messages.
+F: Chat prompts can only contain a single string.
+C: langfuse.create_prompt(name="support", type="chat", prompt=[{"role": "system", "content": "Be kind to {{name}}"}])
+
+@ Linking prompts to generations | 6
+D: Attaching the prompt object to a generation so metrics can be compared per prompt version.
+T: Linked prompts let you compare latency, cost and scores by prompt version.
+F: Linking prompts to generations disables caching.
+C: client.chat.completions.create(model="gpt-5.5", messages=msgs, langfuse_prompt=prompt)
+
+@ Score | 7
+D: A named evaluation value attached to a trace, observation or session.
+T: Scores can be numeric, categorical or boolean.
+F: Scores can only be attached to sessions.
+C: langfuse.create_score(trace_id=tid, name="user-feedback", value=1, data_type="BOOLEAN")
+
+@ span.score_trace | 7
+D: Observation method that attaches a score to the whole trace rather than the observation.
+T: score() scores the observation while score_trace() scores the entire trace.
+F: score_trace() deletes the observation.
+C: span.score(name="relevance", value=0.9)\nspan.score_trace(name="overall", value=0.8)
+
+@ User feedback | 7
+D: Scores sent from the end-user interface, such as thumbs up or down, linked by trace id.
+T: User feedback is attached using the trace id returned to the frontend.
+F: User feedback can only be collected through annotation queues.
+C: langfuse.create_score(trace_id=tid, name="thumbs", value=0, data_type="BOOLEAN")
+
+@ Annotation queue | 7
+D: A workflow where human reviewers label traces with scores in the Langfuse UI.
+U: Domain experts must review a sample of risky answers each week.
+T: Annotation queues route traces to human reviewers.
+F: Annotation queues automatically fine-tune your model.
+C: # Langfuse UI: Annotation Queues -> add traces -> reviewers score them
+
+@ LLM-as-a-judge evaluator | 7
+D: Managed evaluators that use an LLM to score traces for properties like hallucination or relevance.
+U: You want automatic hallucination checks on 10% of production traffic.
+T: LLM-as-a-judge evaluators can run on live traces or experiment runs.
+F: LLM-as-a-judge evaluators can only run on manually labelled traces.
+C: # configure an evaluator template (e.g. hallucination) and target traces
+
+@ Dataset | 7
+D: A collection of items with input and optional expected_output used for testing app versions.
+U: You need a fixed test set of 200 questions to compare prompt versions.
+T: Dataset items can be created from code, CSV upload or production traces.
+F: Datasets can only be created from CSV files.
+C: langfuse.create_dataset(name="faq-eval")\nlangfuse.create_dataset_item(dataset_name="faq-eval", input={"question": "Refund?"}, expected_output="30 days")
+
+@ run_experiment | 7
+D: SDK method that runs a task function over data items, applies evaluators and records a comparable run.
+T: Experiment runs create traces linked to the dataset items.
+F: run_experiment changes the production prompt label.
+C: result = langfuse.run_experiment(name="v2", data=items, task=task, evaluators=[exact])\nprint(result.format())
+
+@ Evaluation object | 7
+D: The value returned by an experiment evaluator, carrying a name and a value.
+T: An evaluator returns Evaluation(name=..., value=...).
+F: Evaluators must return raw strings only.
+C: from langfuse import Evaluation\nreturn Evaluation(name="exact_match", value=1.0)
+
+@ Background export | 8
+D: The SDK sends events in batches from a background thread so tracing adds minimal latency.
+T: Network failures in tracing do not crash your application.
+F: Each traced call blocks until Langfuse confirms the write.
+C: Langfuse(flush_at=512, flush_interval=5)
+
+@ Metrics API | 8
+D: API for querying aggregated metrics such as cost per user per day or latency percentiles.
+T: The Metrics API lets you build custom reports outside the UI.
+F: The Metrics API returns raw prompt text only.
+C: # GET /api/public/metrics?query=...
+
+@ Improvement loop | 8
+D: The cycle of tracing, monitoring, evaluating, curating datasets, experimenting and releasing.
+T: Failing production traces can be added to datasets for future experiments.
+F: Once a prompt is in production, it should never be evaluated again.
+C: # trace -> monitor -> evaluate -> curate -> experiment -> release
+
+@ LangSmith | 8
+D: LangChain's tracing, evaluation and deployment platform, closely integrated with LangChain and LangGraph.
+T: LangSmith is an alternative to Langfuse for tracing and evaluation.
+F: LangSmith is a vector database.
+C: export LANGSMITH_TRACING=true
+
+@ Arize Phoenix | 8
+D: An open-source observability and evaluation tool built on OpenInference and OpenTelemetry.
+T: Phoenix uses OpenInference instrumentations for tracing.
+F: Phoenix is Langfuse's database engine.
+C: import phoenix as px\npx.launch_app()
+
+% Langfuse observation type | 2 | span; generation; event; agent; tool; retriever; embedding; evaluator; guardrail | Langfuse score data type
+% Langfuse score data type | 7 | NUMERIC; CATEGORICAL; BOOLEAN | Langfuse observation type
+% self-hosted Langfuse infrastructure component | 2 | PostgreSQL; ClickHouse; Redis/Valkey; S3-compatible blob storage; web container; worker container
+% Langfuse environment variable | 2 | LANGFUSE_PUBLIC_KEY; LANGFUSE_SECRET_KEY; LANGFUSE_BASE_URL; LANGFUSE_SAMPLE_RATE; LANGFUSE_TRACING_ENVIRONMENT
+% source of evaluation scores in Langfuse | 7 | user feedback; human annotation queues; LLM-as-a-judge evaluators; custom code via SDK/API
+% LLM observability platform | 8 | Langfuse; LangSmith; Arize Phoenix; Weights & Biases Weave; Helicone | LLM evaluation library
+% LLM evaluation library | 8 | RAGAS; DeepEval; TruLens; promptfoo | LLM observability platform
+% trace-level attribute | 5 | user_id; session_id; tags; metadata; release; version
+% Langfuse prompt label | 6 | production; staging; latest; experiment-b
+
+> Rolling out a new prompt version safely | 6 | create a new prompt version ; label it staging and test it ; run an experiment against a dataset ; move the production label to the new version
+> The Langfuse improvement loop | 8 | trace production traffic ; monitor dashboards ; evaluate with judges and feedback ; curate failing traces into datasets ; run experiments ; release the better version
+> Tracing a serverless function with Langfuse | 3 | initialize the client with get_client() ; wrap the handler with @observe ; set attributes with propagate_attributes ; call flush() before the function returns

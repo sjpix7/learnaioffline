@@ -1,0 +1,409 @@
+# FastAPI. Lessons: 1 intro, 2 path/query, 3 bodies, 4 responses/errors, 5 DI, 6 lifespan/bg/middleware, 7 security, 8 streaming, 9 structure/testing/deploy
+@ FastAPI | 1
+D: A Python web framework for building APIs from type hints, built on Starlette and Pydantic.
+T: FastAPI generates an OpenAPI schema automatically from your path operations and type hints.
+F: FastAPI is built on top of Django and its ORM.
+C: from fastapi import FastAPI\napp = FastAPI(title="RAG Service")
+
+@ Starlette | 1
+D: The lightweight ASGI toolkit that provides FastAPI's routing, requests, responses, WebSockets and middleware.
+T: FastAPI's web layer (routing, middleware, WebSockets) comes from Starlette.
+F: Starlette is FastAPI's data validation library.
+C: from starlette.requests import Request
+
+@ ASGI | 1
+D: The Asynchronous Server Gateway Interface, the async successor of WSGI that supports async handlers, WebSockets and streaming.
+T: Uvicorn is an ASGI server that can run FastAPI apps.
+F: ASGI is a synchronous-only standard identical to WSGI.
+C: uvicorn main:app --reload --port 8000
+
+@ Uvicorn | 1
+D: A fast ASGI server commonly used to run FastAPI applications.
+T: uvicorn main:app refers to the app object inside main.py.
+F: Uvicorn is a database driver for FastAPI.
+C: uvicorn main:app --host 0.0.0.0 --port 8000
+
+@ Swagger UI (/docs) | 1
+D: Interactive API documentation served automatically at /docs, generated from the OpenAPI schema.
+T: FastAPI serves interactive documentation at /docs and ReDoc at /redoc by default.
+F: You must write the /docs page by hand in FastAPI.
+C: # open http://127.0.0.1:8000/docs
+
+@ OpenAPI schema | 1
+D: A machine-readable JSON description of all endpoints, parameters and models, served at /openapi.json.
+U: You want to auto-generate a typed client SDK for your RAG API.
+T: FastAPI exposes the generated OpenAPI document at /openapi.json.
+F: The OpenAPI schema must be maintained manually in YAML.
+C: curl http://localhost:8000/openapi.json
+
+@ fastapi dev | 1
+D: CLI command that runs the app with auto-reload for development.
+T: fastapi dev main.py starts a development server with auto-reload.
+F: fastapi dev is the recommended command for production deployments.
+C: fastapi dev main.py\nfastapi run main.py
+
+@ Path operation | 1
+D: The combination of an HTTP method, a URL path and the function that handles it.
+T: @app.get("/items") declares a path operation for GET requests on /items.
+F: One decorator can only handle the DELETE method.
+C: @app.get("/health")\nasync def health():\n    return {"status": "ok"}
+
+@ Route declaration order | 1
+D: FastAPI matches routes in the order they are declared, so fixed paths must come before parameterized ones.
+U: GET /users/me is wrongly handled by /users/{user_id}.
+T: /users/me should be declared before /users/{user_id}.
+F: FastAPI always prefers the most specific route regardless of declaration order.
+C: @app.get("/users/me")\ndef me(): ...\n@app.get("/users/{user_id}")\ndef user(user_id: int): ...
+
+@ def vs async def endpoints | 1
+D: async def handlers run on the event loop, while plain def handlers run in a threadpool.
+U: Your endpoint calls a blocking, synchronous SDK.
+T: A plain def endpoint runs in a threadpool so blocking code does not freeze the server.
+F: Plain def endpoints run directly on the event loop and block all requests.
+C: @app.get("/sync")\ndef sync_endpoint():\n    return blocking_call()
+
+@ Path parameter | 2
+D: A value captured from the URL path using {name} and converted to the annotated type.
+T: For def get_doc(doc_id: int), GET /docs/42 passes the integer 42.
+F: Path parameters are always passed as strings regardless of annotation.
+C: @app.get("/docs/{doc_id}")\ndef get_doc(doc_id: int):\n    return {"doc_id": doc_id}
+B: @app.get("/docs/____")\ndef get_doc(doc_id: int):\n    return {"id": doc_id} ;; {doc_id} ;; <doc_id> ;; :doc_id ;; [doc_id]
+
+@ Query parameter | 2
+D: A function parameter not present in the path, read from the URL query string.
+T: A query parameter without a default value is required.
+F: Query parameters are read from the JSON body by default.
+C: @app.get("/search")\ndef search(q: str, k: int = 5): ...
+
+@ 422 Unprocessable Entity | 2
+D: The status code FastAPI returns when request data fails validation against declared types or constraints.
+T: Calling GET /docs/abc for an int path parameter returns 422.
+F: Validation errors in FastAPI return 500 Internal Server Error.
+C: # GET /docs/abc -> 422 {"detail": [{"type": "int_parsing", ...}]}
+
+@ Annotated with Query | 2
+D: Pattern for attaching validation and docs to a query parameter, e.g. Annotated[str, Query(max_length=50)].
+T: Query(min_length=3) rejects shorter values with a 422.
+F: Query() can only be used for path parameters.
+C: def read(q: Annotated[str | None, Query(min_length=3, max_length=50)] = None): ...
+
+@ Path() constraints | 2
+D: Numeric and string validation for path parameters such as Path(ge=1).
+T: Path(ge=1) rejects 0 with a validation error.
+F: Path() constraints are only documentation and are never enforced.
+C: def read_item(item_id: Annotated[int, Path(ge=1)]): ...
+
+@ List query parameter | 2
+D: Declaring list[str] with Query() so repeated parameters like ?tags=a&tags=b become a list.
+T: tags: Annotated[list[str], Query()] = [] accepts ?tags=a&tags=b.
+F: A list query parameter must be sent as a JSON array in the body.
+C: def items(tags: Annotated[list[str], Query()] = []): ...
+
+@ Header parameter | 2
+D: A parameter read from HTTP headers using Header(), with underscores converted to hyphens.
+T: user_agent: Annotated[str | None, Header()] reads the User-Agent header.
+F: Header() reads values from cookies.
+C: def whoami(user_agent: Annotated[str | None, Header()] = None): ...
+
+@ Bool query conversion | 2
+D: FastAPI converts strings like true, 1, yes and on into True for bool parameters.
+T: ?rerank=yes is parsed as True for a bool parameter.
+F: Only the exact string True is accepted for bool query parameters.
+C: def search(rerank: bool = False): ...
+
+@ Request body | 3
+D: Data sent by the client in the HTTP body, declared in FastAPI as a Pydantic model parameter.
+T: A parameter typed as a Pydantic model is read from the JSON request body.
+F: GET requests are the recommended way to send large JSON bodies.
+C: class ChatRequest(BaseModel):\n    message: str\n@app.post("/chat")\nasync def chat(req: ChatRequest): ...
+
+@ Field constraints | 3
+D: Pydantic Field() arguments like min_length, ge and le that validate body fields.
+T: Field(ge=0, le=2) on temperature rejects 3 with a 422.
+F: Field constraints are ignored for request bodies.
+C: temperature: float = Field(0.2, ge=0, le=2)
+
+@ Body(embed=True) | 3
+D: Option that makes FastAPI expect a body wrapped in a key named after the parameter.
+T: With Body(embed=True), the body must look like {"req": {...}}.
+F: Body(embed=True) embeds the request into the URL.
+C: def chat(req: Annotated[ChatRequest, Body(embed=True)]): ...
+
+@ Parameter source rules | 3
+D: Declared in the path means path param; singular types mean query params; Pydantic models mean body.
+T: An int parameter not declared in the path is treated as a query parameter.
+F: Every parameter of a POST endpoint is read from the body.
+C: @app.put("/sessions/{session_id}")\ndef add(session_id: str, req: ChatRequest, notify: bool = False): ...
+
+@ UploadFile | 3
+D: FastAPI type for uploaded files that are spooled to disk and read asynchronously.
+U: Users upload PDFs to be ingested into your vector store.
+T: Using UploadFile with forms requires the python-multipart package.
+F: UploadFile always loads the entire file into memory before your code runs.
+C: @app.post("/ingest")\nasync def ingest(file: UploadFile):\n    data = await file.read()
+
+@ Form() | 3
+D: Marks a parameter as coming from form-encoded data instead of JSON.
+T: Form fields and JSON bodies cannot be mixed in the same request as both encodings.
+F: Form() reads values from query parameters.
+C: def login(username: Annotated[str, Form()], password: Annotated[str, Form()]): ...
+
+@ Nested models | 3
+D: Pydantic models that contain other models or lists of models, validated recursively.
+T: A field typed list[Source] validates each element as a Source model.
+F: FastAPI cannot validate nested models in request bodies.
+C: class Answer(BaseModel):\n    text: str\n    sources: list[Source] = []
+
+@ response_model | 4
+D: Decorator argument (or return annotation) that validates and filters the data an endpoint returns.
+U: Your endpoint returns a user object that contains a password hash that must not leak.
+T: Fields not declared in the response_model are removed from the response.
+F: response_model only affects documentation and never filters data.
+C: @app.post("/users", response_model=UserOut)\ndef create(user: UserIn):\n    return user
+
+@ status_code parameter | 4
+D: Decorator argument that sets the default success status code of a path operation.
+T: @app.post("/items", status_code=201) returns 201 on success.
+F: status_code=201 makes FastAPI return 201 even when an HTTPException(404) is raised.
+C: @app.post("/items", status_code=status.HTTP_201_CREATED)
+B: @app.post("/users", ____=201)\ndef create_user(user: UserIn): ... ;; status_code ;; status ;; code ;; response_code
+
+@ HTTPException | 4
+D: Exception you raise to return an HTTP error with a status code and a detail message.
+T: raise HTTPException(status_code=404, detail="Not found") returns {"detail": "Not found"}.
+F: You should return HTTPException instead of raising it.
+C: if doc_id not in DB:\n    raise HTTPException(status_code=404, detail="Document not found")
+B: if doc_id not in DB:\n    ____ HTTPException(status_code=404, detail="Not found") ;; raise ;; return ;; yield ;; throw
+
+@ Exception handler | 4
+D: A function registered with @app.exception_handler to convert a custom exception into a response.
+T: A handler for a custom RateLimited exception can return a JSONResponse with status 429.
+F: Exception handlers can only handle HTTPException.
+C: @app.exception_handler(RateLimited)\nasync def handler(request, exc):\n    return JSONResponse(status_code=429, content={"detail": "slow down"})
+
+@ 401 vs 403 | 4
+D: One status means the client is not authenticated; the other means authenticated but not permitted.
+T: 403 Forbidden means the user is known but not allowed to perform the action.
+F: 401 means the user is authenticated but lacks permission.
+C: raise HTTPException(401, "Invalid token")\nraise HTTPException(403, "Admins only")
+
+@ 405 Method Not Allowed | 4
+D: Status returned when the path exists but does not support the requested HTTP method.
+T: Sending POST to a path that only defines GET returns 405.
+F: Calling an unsupported method on an existing path returns 404.
+C: # only @app.get("/items") exists -> POST /items returns 405
+
+@ response_model_exclude_none | 4
+D: Option that drops fields whose value is None from the serialized response.
+T: response_model_exclude_none=True omits null fields from the JSON response.
+F: response_model_exclude_none raises an error if any field is None.
+C: @app.get("/doc", response_model=Doc, response_model_exclude_none=True)
+
+@ JSONResponse | 4
+D: Response class for returning JSON with a custom status code or headers.
+T: Returning JSONResponse bypasses response_model validation.
+F: JSONResponse can only return status 200.
+C: return JSONResponse(status_code=202, content={"queued": True})
+
+@ Depends | 5
+D: FastAPI's dependency injection marker that runs a callable and injects its result into a path operation.
+U: Several endpoints need the same pagination parameters and DB session.
+T: Dependencies can themselves declare query parameters and other dependencies.
+F: Depends can only be used with classes, not functions.
+C: def pagination(skip: int = 0, limit: int = 10):\n    return {"skip": skip, "limit": limit}\n@app.get("/docs")\ndef docs(page: Annotated[dict, Depends(pagination)]): ...
+B: def list_docs(page: Annotated[dict, ____(pagination)]):\n    return page ;; Depends ;; Inject ;; Query ;; Provide
+
+@ Dependency caching | 5
+D: Within a single request, a dependency used multiple times is executed only once by default.
+T: use_cache=True is the default behaviour for Depends.
+F: FastAPI caches dependency results across all requests by default.
+C: Depends(get_db, use_cache=True)
+
+@ yield dependency | 5
+D: A dependency that yields a value and runs cleanup code after the response is sent.
+U: Each request needs a database session that is always closed afterwards.
+T: Code after yield in a dependency runs after the path operation finishes.
+F: yield dependencies run their cleanup before the endpoint function executes.
+C: def get_db():\n    db = SessionLocal()\n    try:\n        yield db\n    finally:\n        db.close()
+
+@ dependency_overrides | 5
+D: A dict on the app used to replace dependencies with fakes, typically in tests.
+U: Tests must use a fake LLM client instead of the real one.
+T: app.dependency_overrides[get_llm] = lambda: FakeLLM() swaps the dependency.
+F: dependency_overrides permanently edits the source code of the dependency.
+C: app.dependency_overrides[get_settings] = lambda: Settings(openai_api_key="test")
+
+@ Global dependencies | 5
+D: Dependencies attached to the whole app or a router so they run for every included route.
+T: FastAPI(dependencies=[Depends(verify_api_key)]) applies the check to all routes.
+F: Router-level dependencies are ignored when the router is included.
+C: router = APIRouter(dependencies=[Depends(verify_api_key)])
+
+@ lru_cache settings | 5
+D: Pattern that caches a Settings object so environment variables are read only once.
+T: Decorating get_settings with @lru_cache returns the same Settings instance on each call.
+F: lru_cache re-reads the .env file on every request.
+C: @lru_cache\ndef get_settings() -> Settings:\n    return Settings()
+
+@ lifespan | 6
+D: An async context manager passed to FastAPI that runs startup code before yield and shutdown code after.
+U: You want to load an embedding model once when the server starts.
+T: lifespan replaces the deprecated @app.on_event("startup") handlers.
+F: lifespan code runs once per request.
+C: @asynccontextmanager\nasync def lifespan(app):\n    app.state.model = load_model()\n    yield\n    cleanup()\napp = FastAPI(lifespan=lifespan)
+
+@ app.state | 6
+D: A namespace on the application for storing shared objects such as clients and models.
+T: request.app.state lets endpoints access objects created during lifespan.
+F: app.state is reset at the start of every request.
+C: request.app.state.embedder("hello")
+
+@ BackgroundTasks | 6
+D: Mechanism to run a function after the response has been sent to the client.
+U: You want to log user feedback without making the user wait.
+T: tasks.add_task(fn, arg) schedules fn to run after the response.
+F: BackgroundTasks are a durable job queue that survives server restarts.
+C: def feedback(rating: int, tasks: BackgroundTasks):\n    tasks.add_task(log_feedback, rating)\n    return {"ok": True}
+
+@ Task queue | 6
+D: External system such as Celery, RQ or Arq for long-running or durable jobs outside the request cycle.
+U: Ingesting thousands of documents takes 20 minutes and must survive restarts.
+T: Long-running ingestion jobs are better handled by a task queue than by BackgroundTasks.
+F: BackgroundTasks are the best choice for multi-hour batch jobs.
+C: celery_app.send_task("ingest", args=[doc_id])
+
+@ HTTP middleware | 6
+D: Code that wraps every request and response, declared with @app.middleware("http").
+T: Middleware receives the request and a call_next function that produces the response.
+F: Middleware runs only for requests that fail validation.
+C: @app.middleware("http")\nasync def timing(request, call_next):\n    response = await call_next(request)\n    return response
+
+@ CORSMiddleware | 6
+D: Middleware that adds Cross-Origin Resource Sharing headers so browsers on other origins can call the API.
+U: A React app on another domain gets blocked by the browser when calling your API.
+T: allow_origins should list the frontend origins allowed to call the API.
+F: CORS is enforced by the server for all clients including curl.
+C: app.add_middleware(CORSMiddleware, allow_origins=["https://myapp.com"], allow_methods=["*"])
+
+@ GZipMiddleware | 6
+D: Middleware that compresses responses above a size threshold.
+T: GZipMiddleware reduces bandwidth for large JSON responses.
+F: GZipMiddleware encrypts responses.
+C: app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+@ APIKeyHeader | 7
+D: Security helper that reads an API key from a named header and documents it in OpenAPI.
+T: APIKeyHeader(name="X-API-Key") reads the key from the X-API-Key header.
+F: APIKeyHeader stores API keys in the database automatically.
+C: api_key_header = APIKeyHeader(name="X-API-Key")\ndef verify(key: str = Security(api_key_header)): ...
+
+@ OAuth2PasswordBearer | 7
+D: Security dependency that extracts a bearer token from the Authorization header and adds an Authorize button to /docs.
+T: OAuth2PasswordBearer(tokenUrl="token") expects Authorization: Bearer <token>.
+F: OAuth2PasswordBearer validates JWT signatures by itself.
+C: oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")\ndef current_user(token: Annotated[str, Depends(oauth2_scheme)]): ...
+
+@ OAuth2PasswordRequestForm | 7
+D: Dependency class that parses username and password from form data at the token endpoint.
+T: OAuth2PasswordRequestForm reads form fields, not a JSON body.
+F: OAuth2PasswordRequestForm returns a signed JWT.
+C: def login(form: Annotated[OAuth2PasswordRequestForm, Depends()]): ...
+
+@ JWT | 7
+D: A compact signed token carrying claims like sub and exp, verified with a secret or public key.
+T: The exp claim lets the server reject expired tokens.
+F: JWT payloads are encrypted, so secrets can safely be stored in them.
+C: jwt.encode({"sub": user, "exp": expires}, SECRET_KEY, algorithm="HS256")
+
+@ Password hashing | 7
+D: Storing a slow, salted hash (bcrypt or Argon2) instead of the plain password.
+T: Passwords should be stored as bcrypt or Argon2 hashes, never in plain text.
+F: Storing passwords encrypted with a reversible key is the recommended practice.
+C: from pwdlib import PasswordHash\nhasher = PasswordHash.recommended()\nhasher.hash("secret")
+
+@ Rate limiting | 7
+D: Restricting how many requests a user or key can make in a time window to control cost and abuse.
+U: A single user is running up a large LLM bill by spamming your chat endpoint.
+T: Returning 429 Too Many Requests signals that a client exceeded its rate limit.
+F: Rate limiting is unnecessary for LLM APIs because tokens are free.
+C: @limiter.limit("10/minute")\nasync def chat(request: Request): ...
+
+@ StreamingResponse | 8
+D: Response class that sends data chunk by chunk from a generator or async generator.
+U: You want tokens from the LLM to appear to the user as they are generated.
+T: StreamingResponse accepts an async generator yielding text chunks.
+F: StreamingResponse waits for the generator to finish before sending anything.
+C: return StreamingResponse(token_stream(prompt), media_type="text/plain")
+
+@ Server-Sent Events | 8
+D: A one-way server-to-client streaming format over HTTP using the text/event-stream media type.
+U: A browser chat UI needs streamed tokens with automatic reconnection.
+T: Browsers consume SSE with the EventSource API, which reconnects automatically.
+F: SSE allows the browser to send messages to the server over the same stream.
+C: @app.post("/chat/stream", response_class=EventSourceResponse)\nasync def stream(req: ChatRequest):\n    yield ServerSentEvent(data="Hel", event="token")
+
+@ EventSourceResponse | 8
+D: FastAPI's native response class for Server-Sent Events, used with yield in a path operation.
+T: In fastapi.sse, ServerSentEvent data is JSON-encoded unless you use raw_data.
+F: EventSourceResponse only works with WebSockets.
+C: from fastapi.sse import EventSourceResponse, ServerSentEvent
+
+@ WebSocket | 8
+D: A persistent, bidirectional connection suitable for realtime chat, voice or interrupts.
+U: A voice agent must receive audio and send responses at the same time.
+T: A WebSocket endpoint must call await ws.accept() before exchanging messages.
+F: WebSockets are one-way like Server-Sent Events.
+C: @app.websocket("/ws")\nasync def ws_chat(ws: WebSocket):\n    await ws.accept()\n    msg = await ws.receive_text()
+
+@ WebSocketDisconnect | 8
+D: Exception raised when the client closes a WebSocket connection.
+T: Catching WebSocketDisconnect lets the server clean up when a client leaves.
+F: WebSocketDisconnect is raised when the server sends a message.
+C: except WebSocketDisconnect:\n    manager.remove(ws)
+
+@ APIRouter | 9
+D: A mini application for grouping related path operations with a shared prefix, tags and dependencies.
+U: Your app has chat, ingest and admin endpoints that you want in separate modules.
+T: APIRouter(prefix="/chat") makes its routes start with /chat.
+F: Each APIRouter must run as a separate server process.
+C: router = APIRouter(prefix="/chat", tags=["chat"])\napp.include_router(router)
+B: router = APIRouter(prefix="/chat")\napp.____(router) ;; include_router ;; add_router ;; mount_router ;; register
+
+@ TestClient | 9
+D: A test client built on HTTPX that calls your FastAPI app in-process without running a server.
+T: client.get("/health").status_code can be asserted directly in pytest.
+F: TestClient requires starting uvicorn in another terminal.
+C: client = TestClient(app)\nassert client.get("/health").json() == {"status": "ok"}
+
+@ ASGITransport | 9
+D: HTTPX transport that sends requests directly to an ASGI app, used with AsyncClient for async tests.
+T: httpx.AsyncClient(transport=ASGITransport(app=app)) tests the app asynchronously.
+F: ASGITransport opens a real network socket to the app.
+C: async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:\n    r = await c.get("/health")
+
+@ Multiple workers | 9
+D: Running several server processes so the API can use multiple CPU cores.
+T: fastapi run --workers 4 starts four worker processes.
+F: A single Uvicorn worker uses all CPU cores in parallel.
+C: fastapi run app/main.py --workers 4
+
+@ Reverse proxy | 9
+D: A server such as Nginx or Traefik in front of the app handling TLS, routing and load balancing.
+T: TLS termination is commonly handled by a reverse proxy or load balancer.
+F: FastAPI apps cannot be placed behind a reverse proxy.
+C: # nginx: proxy_pass http://127.0.0.1:8000;
+
+% HTTP success status code | 4 | 200 OK; 201 Created; 202 Accepted; 204 No Content | HTTP client error status code
+% HTTP client error status code | 4 | 400 Bad Request; 401 Unauthorized; 403 Forbidden; 404 Not Found; 405 Method Not Allowed; 422 Unprocessable Entity; 429 Too Many Requests | HTTP success status code
+% FastAPI parameter function | 2 | Query(); Path(); Header(); Cookie(); Body(); Form(); File()
+% FastAPI response class | 4 | JSONResponse; HTMLResponse; PlainTextResponse; RedirectResponse; FileResponse; StreamingResponse; EventSourceResponse
+% built-in Starlette/FastAPI middleware | 6 | CORSMiddleware; GZipMiddleware; TrustedHostMiddleware; HTTPSRedirectMiddleware
+% FastAPI security utility | 7 | OAuth2PasswordBearer; OAuth2PasswordRequestForm; APIKeyHeader; HTTPBearer; HTTPBasic; APIKeyQuery
+% ASGI server | 1 | Uvicorn; Hypercorn; Granian; Daphne | WSGI server
+% WSGI server | 1 | Gunicorn (sync workers); uWSGI; mod_wsgi; Waitress | ASGI server
+% Python background job queue | 6 | Celery; RQ; Arq; Dramatiq; Huey
+% streaming transport for LLM output | 8 | StreamingResponse (chunked HTTP); Server-Sent Events; WebSockets
+
+> Steps FastAPI performs for a request with a Pydantic body | 3 | read the JSON body ; validate and convert it with the Pydantic model ; call the endpoint with the typed object ; serialize and filter the return value with response_model
+> Lifecycle with a lifespan handler | 6 | code before yield runs at startup ; the app serves requests ; code after yield runs at shutdown
+> OAuth2 password flow with JWT | 7 | client posts username and password to /token ; server verifies the password hash ; server returns a signed JWT access token ; client sends Authorization: Bearer <token> on later requests

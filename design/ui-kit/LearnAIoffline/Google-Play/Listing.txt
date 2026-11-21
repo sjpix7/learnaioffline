@@ -1,0 +1,20 @@
+App title
+LearnAIoffline
+
+Short description
+Learn AI engineering offline with 140 lessons and 52,800 practice questions.
+
+Full description
+Turn a few spare minutes into an AI engineering study session. LearnAIoffline keeps your course, code examples, glossary and question bank on your Android phone. Study without an internet connection, account or ads.
+
+Learn the modern AI stack
+Explore 16 topics in 140 lessons, from Python and FastAPI to LangChain, LangGraph, Langfuse and LlamaIndex. Work through vector, graph and hybrid retrieval, RAG architectures, embeddings, LLMs, agentic frameworks, RAGAS, the AI frameworks landscape and Model Context Protocol (MCP).
+
+Practice with explanations
+Choose from 52,800 multiple-choice questions, with 3,300 per topic. Continue in order, build a random set, focus on a lesson, revisit mistakes, answer unseen questions, study bookmarks or start from a question number. Each question includes a hint, sample code, an explanation and a link back to its lesson.
+
+Build a daily routine
+Review 1,116 key concepts as a glossary or flashcards. Bookmark material for later and follow your lesson completion, accuracy, study time and streaks. Your progress is saved locally for your next session.
+
+Read comfortably
+Choose a light or dark theme, follow your device appearance, and adjust text and code for comfortable reading.

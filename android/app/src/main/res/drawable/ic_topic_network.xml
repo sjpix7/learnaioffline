@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Topic pictogram "network" from the LearnAIoffline design kit (24 dp outline, tinted at runtime). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <path android:pathData="M5 6l13 4-6 9z M3 4h4v4H3z M16 8h4v4h-4z M10 17h4v4h-4z" android:fillColor="#00000000" android:strokeColor="#FF000000"
+        android:strokeWidth="1.65" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

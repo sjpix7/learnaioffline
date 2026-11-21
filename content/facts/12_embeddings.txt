@@ -1,0 +1,362 @@
+# Embeddings. Lessons: 1 what, 2 word vectors to transformers, 3 training, 4 similarity/normalization, 5 landscape, 6 MTEB, 7 dims/MRL/quantization, 8 practice
+@ Embedding | 1
+D: A dense vector of numbers representing the meaning of text (or images, audio, code) so similar items are close together.
+T: Texts with similar meaning get nearby embedding vectors.
+F: Embeddings are a compressed copy of the text that can be decoded back exactly.
+C: vecs = model.encode(["reset my password", "recover account access"])
+
+@ Embedding dimension | 1
+D: The length of an embedding vector, such as 384, 768, 1024, 1536 or 3072.
+T: all-MiniLM-L6-v2 produces 384-dimensional embeddings.
+F: All embedding models produce 1536-dimensional vectors.
+C: model.encode("hi").shape  # (384,)
+
+@ Max input tokens | 1
+D: The longest input an embedding model reads; text beyond it is truncated.
+T: Text beyond an embedding model's max sequence length is silently cut off.
+F: Embedding models always read inputs of unlimited length.
+C: model.max_seq_length  # e.g. 256 or 512
+
+@ Asymmetric search | 1
+D: Retrieval where short queries are compared with longer passages, often requiring query/passage prefixes or instructions.
+T: E5 models expect "query: " and "passage: " prefixes for asymmetric search.
+F: Asymmetric search means the vectors have different dimensions.
+C: model.encode(["query: how to reset password", "passage: To reset your password..."])
+
+@ Semantic deduplication | 1
+D: Detecting near-duplicate texts by thresholding embedding similarity.
+U: Your crawl contains thousands of slightly reworded copies of the same article.
+T: Near-duplicates have very high cosine similarity.
+F: Deduplication with embeddings requires exact string matches.
+C: dupes = [(i, j) for i, j in pairs if cos(v[i], v[j]) > 0.95]
+
+@ Embedding-based clustering | 1
+D: Grouping texts by running algorithms like k-means or HDBSCAN on their embeddings.
+T: Clustering embeddings can discover topics without labels.
+F: Clustering embeddings requires labelled training data.
+C: labels = KMeans(n_clusters=8).fit_predict(vecs)
+
+@ word2vec | 2
+D: A 2013 model learning static word vectors by predicting context words (skip-gram) or the center word (CBOW).
+T: word2vec gives one vector per word regardless of context.
+F: word2vec produces different vectors for "bank" depending on the sentence.
+C: # king - man + woman ≈ queen
+
+@ GloVe | 2
+D: Stanford's 2014 static word embeddings learned from global word co-occurrence statistics.
+T: GloVe is trained on co-occurrence counts.
+F: GloVe is a transformer-based sentence encoder.
+C: # glove.6B.300d.txt
+
+@ fastText | 2
+D: Facebook's word embeddings built from character n-grams, handling rare and misspelled words.
+T: fastText can build vectors for words never seen during training.
+F: fastText cannot handle misspellings.
+C: # vector("embeddingz") built from its character n-grams
+
+@ Contextual embeddings | 2
+D: Token vectors from transformers like BERT that depend on the surrounding sentence.
+T: BERT gives "bank" different vectors in "river bank" and "bank account".
+F: Contextual embeddings are identical for a word in every sentence.
+C: outputs = bert(**tokenizer("river bank", return_tensors="pt"))
+
+@ Sentence-BERT | 2
+D: A 2019 method fine-tuning BERT in a siamese setup so pooled outputs can be compared with cosine similarity.
+T: Sentence-BERT created the sentence-transformers library.
+F: Sentence-BERT is a word-level embedding model like GloVe.
+C: from sentence_transformers import SentenceTransformer
+
+@ Mean pooling | 2
+D: Averaging all token vectors (excluding padding) to form a sentence embedding.
+T: Mean pooling is common in sentence-transformers models.
+F: Mean pooling uses only the last token.
+C: emb = (tok_vecs * mask).sum(1) / mask.sum(1)
+
+@ CLS pooling | 2
+D: Using the [CLS] token's output vector as the sentence embedding.
+T: BGE models use CLS pooling.
+F: CLS pooling averages all tokens.
+C: emb = outputs.last_hidden_state[:, 0]
+
+@ Last-token pooling | 2
+D: Using the final token's vector as the embedding, common for decoder-LLM-based embedders.
+T: Qwen3-Embedding uses last-token pooling.
+F: Last-token pooling is used by GloVe.
+C: emb = hidden[:, -1]
+
+@ LLM-based embedders | 2
+D: Embedding models built from decoder LLMs (Mistral, Qwen, Gemma) and fine-tuned contrastively.
+T: LLM-based embedders often lead recent MTEB leaderboards.
+F: LLM-based embedders are always smaller than MiniLM.
+C: SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
+
+@ Bi-encoder | 3
+D: An encoder that embeds queries and documents independently so document vectors can be precomputed.
+T: Bi-encoders enable fast indexed retrieval.
+F: Bi-encoders must encode each (query, document) pair together.
+C: q = model.encode(query)\nD = model.encode(docs)  # precomputed
+
+@ Contrastive learning | 3
+D: Training that pulls positive pairs together and pushes negatives apart in embedding space.
+T: Contrastive training uses positives and negatives.
+F: Contrastive learning only uses positive pairs.
+C: loss = losses.MultipleNegativesRankingLoss(model)
+
+@ InfoNCE loss | 3
+D: A contrastive loss: −log of the softmax probability of the positive among positives and negatives, scaled by a temperature.
+T: InfoNCE uses a temperature τ to sharpen similarities.
+F: InfoNCE is a regression loss on raw distances.
+C: L = -log(exp(sim(q, p+)/τ) / Σ exp(sim(q, p_j)/τ))
+
+@ In-batch negatives | 3
+D: Using the other examples in the same training batch as negatives for each query.
+T: Larger batches provide more in-batch negatives.
+F: In-batch negatives require manually labelling every negative.
+C: # batch of (q_i, p_i): p_j (j≠i) act as negatives for q_i
+
+@ Hard negatives | 3
+D: Passages that look relevant but are not, used to teach fine-grained distinctions.
+U: Your retriever confuses "reset password" with "reset router".
+T: Hard negatives are crucial for strong retrievers.
+F: Hard negatives are random unrelated documents.
+C: {"anchor": q, "positive": p, "negative": similar_but_wrong}
+
+@ MultipleNegativesRankingLoss | 3
+D: The sentence-transformers loss implementing contrastive learning with in-batch negatives.
+T: It needs only (anchor, positive) pairs, using other batch items as negatives.
+F: It requires numeric similarity labels for every pair.
+C: loss = losses.MultipleNegativesRankingLoss(model)
+
+@ Domain fine-tuning | 3
+D: Further training an embedding model on in-domain query–passage pairs.
+U: General embeddings struggle with your legal contract terminology.
+T: Domain fine-tuning often beats switching to a bigger general model.
+F: Fine-tuning embeddings always hurts domain retrieval.
+C: trainer = SentenceTransformerTrainer(model=model, train_dataset=pairs, loss=loss)\ntrainer.train()
+
+@ Cross-encoder | 3
+D: A model that scores a query and document together, used for reranking rather than indexing.
+T: Cross-encoders cannot precompute document embeddings.
+F: Cross-encoders produce reusable document vectors.
+C: CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2").predict([(q, d)])
+
+@ Cosine similarity | 4
+D: Dot product divided by the product of norms; measures the angle between vectors.
+T: Cosine similarity ranges from −1 to 1.
+F: Cosine similarity depends on vector length.
+C: cos = a @ b / (norm(a) * norm(b))
+
+@ Unit normalization | 4
+D: Dividing a vector by its L2 norm so its length becomes 1.
+T: For unit vectors, dot product equals cosine similarity.
+F: Normalization changes which direction a vector points.
+C: v = v / np.linalg.norm(v)
+
+@ Score calibration | 4
+D: Choosing similarity thresholds per model using labelled data, since raw cosine values differ across models.
+T: A cosine of 0.8 can mean different things for different models.
+F: A cosine threshold of 0.8 transfers unchanged across all models.
+C: threshold = pick_threshold(labelled_pairs, model)
+
+@ Anisotropy | 4
+D: When embeddings occupy a narrow cone so all pairs look similar.
+T: Contrastive training reduces anisotropy.
+F: Anisotropy means embeddings are perfectly uniform in all directions.
+C: # all pairwise cosines between 0.7 and 1.0
+
+@ text-embedding-3-small | 5
+D: OpenAI's low-cost embedding model with 1536 dimensions, shortenable via the dimensions parameter.
+T: text-embedding-3-small outputs 1536 dimensions by default.
+F: text-embedding-3-small outputs 3072 dimensions by default.
+C: client.embeddings.create(model="text-embedding-3-small", input="hello")
+
+@ text-embedding-3-large | 5
+D: OpenAI's larger embedding model with 3072 dimensions by default, also supporting the dimensions parameter.
+T: text-embedding-3-large supports shortened vectors through the dimensions parameter.
+F: text-embedding-3-large cannot be shortened.
+C: client.embeddings.create(model="text-embedding-3-large", input="hello", dimensions=256)
+
+@ Gemini Embedding | 5
+D: Google's gemini-embedding-001 model with 3072-dimensional Matryoshka embeddings, plus the multimodal Gemini Embedding 2 (2026).
+T: gemini-embedding-001 supports reduced dimensions such as 768 and 1536.
+F: Gemini embeddings are limited to 128 dimensions.
+C: client.models.embed_content(model="gemini-embedding-001", contents="hello")
+
+@ Cohere Embed v4 | 5
+D: Cohere's multimodal (text + image) embedding model with Matryoshka sizes and input_type for queries vs documents.
+T: Cohere uses input_type="search_query" or "search_document".
+F: Cohere Embed v4 only supports images.
+C: co.embed(model="embed-v4.0", texts=["hi"], input_type="search_query")
+
+@ Voyage AI embeddings | 5
+D: Embedding models (now part of MongoDB) including voyage-3.5 and the 2026 Voyage 4 family plus domain models for code, law and finance.
+T: Voyage offers domain-specific embedding models such as voyage-code.
+F: Voyage only offers image generation models.
+C: vo.embed(["hi"], model="voyage-3.5", input_type="query")
+
+@ Qwen3-Embedding | 5
+D: Alibaba's open embedding family (0.6B, 4B, 8B) that is instruction-aware with long context and flexible dimensions.
+T: Qwen3-Embedding-8B ranked at the top of MTEB multilingual in 2025–2026.
+F: Qwen3-Embedding is a closed API-only model.
+C: SentenceTransformer("Qwen/Qwen3-Embedding-0.6B").encode(texts, prompt_name="query")
+
+@ BGE-M3 | 5
+D: BAAI's multilingual model that outputs dense, sparse and multi-vector (ColBERT) representations, with 8192-token inputs.
+U: You want one open model for dense, sparse and late-interaction retrieval across 100+ languages.
+T: BGE-M3 produces dense, sparse and multi-vector outputs from one model.
+F: BGE-M3 only supports English.
+C: from FlagEmbedding import BGEM3FlagModel\nmodel = BGEM3FlagModel("BAAI/bge-m3")
+
+@ E5 models | 5
+D: Microsoft's embedding family that requires "query: " and "passage: " prefixes.
+T: Forgetting E5's prefixes reduces retrieval quality.
+F: E5 models forbid any prefixes.
+C: model.encode(["query: what is RAG", "passage: RAG combines retrieval..."])
+
+@ nomic-embed-text | 5
+D: Nomic's open embedding model with open data and code, task prefixes and Matryoshka support.
+T: nomic-embed-text uses prefixes like search_query: and search_document:.
+F: nomic-embed-text is closed-source.
+C: model.encode(["search_query: what is hybrid search"])
+
+@ all-MiniLM-L6-v2 | 5
+D: A tiny, fast 384-dimensional sentence-transformers model often used as a baseline.
+U: You need fast CPU embeddings for a prototype.
+T: all-MiniLM-L6-v2 has about 22 million parameters.
+F: all-MiniLM-L6-v2 is a 70-billion-parameter model.
+C: SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+
+@ Jina embeddings | 5
+D: Jina AI's embedding models (v3 with task LoRA adapters, v4 multimodal) supporting long inputs and late chunking.
+T: jina-embeddings-v3 uses task-specific LoRA adapters.
+F: Jina embeddings only work for images.
+C: model.encode(texts, task="retrieval.query")
+
+@ Choosing an embedding model | 5
+D: Selecting by languages, domain, quality on your own eval set, cost, latency, dimensions, context length and licence.
+T: Evaluating candidates on your own data beats relying only on leaderboards.
+F: The top leaderboard model is always the best for every dataset.
+C: for m in candidates:\n    print(m, recall_at_k(m, queries, corpus, relevant))
+
+@ MTEB | 6
+D: The Massive Text Embedding Benchmark covering retrieval, reranking, classification, clustering, STS, pair classification, summarization and bitext mining.
+T: MTEB is hosted as a leaderboard on Hugging Face.
+F: MTEB evaluates only image classification.
+C: # https://huggingface.co/spaces/mteb/leaderboard
+
+@ MTEB retrieval score | 6
+D: The retrieval task metric, typically nDCG@10 on BEIR-style datasets.
+T: For RAG, the retrieval column matters more than the overall average.
+F: MTEB retrieval is measured with BLEU.
+C: # nDCG@10 averaged over retrieval datasets
+
+@ MMTEB | 6
+D: The 2025 massive multilingual extension of MTEB covering hundreds of tasks in 250+ languages.
+T: MMTEB extends MTEB to many more languages and domains.
+F: MMTEB covers only English.
+C: # multilingual, code and domain leaderboards
+
+@ BEIR | 6
+D: A benchmark of diverse zero-shot retrieval datasets used inside MTEB's retrieval tasks.
+T: BEIR tests zero-shot retrieval across domains.
+F: BEIR is an embedding model.
+C: # BEIR datasets: SciFact, NQ, FiQA, TREC-COVID ...
+
+@ STS | 6
+D: Semantic textual similarity tasks that correlate model similarity with human similarity ratings.
+T: STS is evaluated with correlation against human judgments.
+F: STS measures retrieval latency.
+C: # Spearman correlation between cos(a, b) and human scores
+
+@ Benchmark contamination | 6
+D: When training data overlaps with benchmark data, inflating leaderboard scores.
+T: Contamination can make leaderboard scores overestimate real performance.
+F: Contamination always lowers benchmark scores.
+C: # validate on your own held-out data
+
+@ Matryoshka Representation Learning | 7
+D: Training so the first m dimensions of an embedding are themselves a good embedding, allowing truncation.
+U: Storage is too expensive at 3072 dimensions and you can accept a small quality loss.
+T: After truncating a Matryoshka embedding you should re-normalize it.
+F: Matryoshka embeddings cannot be truncated.
+C: SentenceTransformer("nomic-ai/nomic-embed-text-v1.5", trust_remote_code=True, truncate_dim=256)
+
+@ dimensions parameter | 7
+D: OpenAI embeddings API option that returns a shortened (Matryoshka) vector.
+T: dimensions=256 returns a 256-dimensional vector from text-embedding-3-large.
+F: dimensions increases the vector size beyond the model's native size.
+C: client.embeddings.create(model="text-embedding-3-large", input="hi", dimensions=256)
+
+@ Scalar (int8) quantization | 7
+D: Mapping each float to an 8-bit integer using value ranges, giving 4× smaller vectors with small quality loss.
+T: int8 vectors use 1 byte per dimension instead of 4.
+F: int8 quantization makes vectors 32 times smaller than float32.
+C: from sentence_transformers.quantization import quantize_embeddings\nq = quantize_embeddings(vecs, precision="int8")
+
+@ Binary quantization | 7
+D: Keeping only the sign bit of each dimension (1 bit), giving 32× compression, compared with Hamming distance.
+T: Binary quantization is usually followed by rescoring top candidates with full-precision vectors.
+F: Binary quantization stores 8 bits per dimension.
+C: bits = np.packbits(vecs > 0, axis=-1)
+
+@ Rescoring | 7
+D: Re-ranking the top candidates from a compressed index using higher-precision vectors.
+T: Rescoring recovers most of the accuracy lost by binary quantization.
+F: Rescoring discards the full-precision vectors.
+C: top = binary_search(q, k=100)\nfinal = sorted(top, key=lambda d: -float_dot(q, d))[:10]
+
+@ Storage formula | 7
+D: Raw size = N × d × bytes per value (float32 = 4, float16 = 2, int8 = 1, binary = 1/8).
+T: One million 1024-dim float32 vectors take about 4.1 GB.
+F: One million 1024-dim float32 vectors take about 41 MB.
+C: size_bytes = N * d * 4
+
+@ Query/document prefixes | 8
+D: Model-specific strings or input types that tell asymmetric models whether text is a query or a document.
+T: Using the wrong prefix or none can noticeably reduce retrieval quality.
+F: Prefixes are ignored by all embedding models.
+C: emb_q = model.encode("search_query: " + q)\nemb_d = model.encode("search_document: " + d)
+
+@ Embedding cache | 8
+D: Storing embeddings keyed by model and text hash to avoid re-embedding unchanged text.
+T: Caching embeddings saves cost during re-indexing.
+F: Embedding caches should ignore the model name.
+C: key = (model_name, sha256(text))
+
+@ Batching embeddings | 8
+D: Sending many texts per embedding request for higher throughput.
+T: Embedding in batches is much faster than one text at a time.
+F: Batching makes embedding slower.
+C: vecs = model.encode(texts, batch_size=64)
+
+@ Text Embeddings Inference | 8
+D: Hugging Face's high-performance server for self-hosting embedding and reranker models.
+T: TEI serves open embedding models efficiently.
+F: TEI is a vector database.
+C: docker run ghcr.io/huggingface/text-embeddings-inference --model-id BAAI/bge-m3
+
+@ Cross-lingual retrieval | 8
+D: Retrieving documents in one language with a query in another, using multilingual embeddings.
+U: Users ask in Hindi but documents are in English.
+T: Multilingual models map different languages into a shared space.
+F: Cross-lingual retrieval requires translating every document first.
+C: model = SentenceTransformer("BAAI/bge-m3")
+
+@ Embedding versioning | 8
+D: Recording which model and version produced each vector and re-indexing when it changes.
+T: Mixing vectors from different model versions breaks similarity search.
+F: You can upgrade the embedding model without re-indexing.
+C: payload={"text": t, "emb_model": "bge-m3@2026-01"}
+
+% embedding API provider model | 5 | text-embedding-3-small; text-embedding-3-large; gemini-embedding-001; Cohere embed-v4.0; voyage-3.5 | open-weight embedding model
+% open-weight embedding model | 5 | Qwen3-Embedding-8B; BGE-M3; multilingual-e5-large; nomic-embed-text-v1.5; all-MiniLM-L6-v2; EmbeddingGemma | embedding API provider model
+% static word embedding method | 2 | word2vec; GloVe; fastText | contextual encoder
+% contextual encoder | 2 | BERT; RoBERTa; Sentence-BERT; E5; BGE | static word embedding method
+% MTEB task type | 6 | retrieval; reranking; classification; clustering; pair classification; STS; summarization; bitext mining
+% embedding pooling strategy | 2 | mean pooling; CLS pooling; last-token pooling
+% embedding compression technique | 7 | Matryoshka truncation; int8 scalar quantization; binary quantization; product quantization
+% embedding use case | 1 | semantic search; clustering; classification features; deduplication; recommendations; anomaly detection
+% contrastive training ingredient | 3 | positive pairs; in-batch negatives; hard negatives; temperature τ
+
+> Training a domain embedding model | 3 | collect (query, relevant passage) pairs ; mine hard negatives ; train with a contrastive loss such as MultipleNegativesRankingLoss ; evaluate recall@k on a held-out set
+> Binary quantization search with rescoring | 7 | embed and binarize documents ; search the binary index with Hamming distance ; take the top candidates ; rescore them with full-precision vectors

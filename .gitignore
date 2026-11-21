@@ -1,0 +1,62 @@
+# ---------------------------------------------------------------- OS / editors
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+.idea/
+.vscode/
+*.iml
+.fleet/
+
+# ---------------------------------------------------------------- Secrets (never commit)
+# Release signing: the upload key, its passwords and any base64 copy made for CI secrets.
+*.jks
+*.keystore
+*.p12
+*.pem
+keystore.properties
+!keystore.properties.example
+*keystore*.base64
+*keystore*.b64
+.env
+.env.*
+!.env.example
+local.properties
+google-services.json
+play-service-account*.json
+
+# ---------------------------------------------------------------- Android / Gradle / Kotlin
+.gradle/
+.kotlin/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+output-metadata.json
+
+# ---------------------------------------------------------------- Python (content pipeline)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# ---------------------------------------------------------------- App data and scratch files
+# Progress backups exported from Settings › Data contain personal study history.
+learnaioffline-progress*.db
+*.db-journal
+*.log
+tmp/
+
+# ---------------------------------------------------------------- Design kit
+# The original ChatGPT delivery zip (10 MB) duplicates design/ui-kit/, which is extracted and tracked.
+design/*.zip

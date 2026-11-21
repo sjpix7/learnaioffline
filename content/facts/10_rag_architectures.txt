@@ -1,0 +1,325 @@
+# RAG Architectures. Lessons: 1 naive/advanced/modular, 2 query transformation, 3 routing/multi-source, 4 hierarchical, 5 contextual/late chunking, 6 CRAG, 7 Self-RAG/adaptive, 8 agentic RAG, 9 multimodal, 10 long context/CAG/production
+@ Naive RAG | 1
+D: The basic retrieve-then-read pipeline: index, retrieve top-k, stuff into the prompt and generate.
+T: Naive RAG can suffer from both low retrieval precision and low recall.
+F: Naive RAG includes query rewriting, reranking and self-reflection by definition.
+C: docs = retriever.invoke(q)\nanswer = llm(prompt(q, docs))
+
+@ Advanced RAG | 1
+D: RAG with optimizations before retrieval (query rewriting, better chunking) and after retrieval (reranking, compression).
+T: Reranking is a post-retrieval optimization in advanced RAG.
+F: Advanced RAG removes the retrieval step.
+C: q2 = rewrite(q)\ndocs = rerank(q2, hybrid_search(q2))[:5]
+
+@ Modular RAG | 1
+D: Treating RAG as composable modules (search, memory, routing, fusion, generation) arranged in flexible flows with loops and branches.
+T: LangGraph and LlamaIndex Workflows are well suited to modular RAG.
+F: Modular RAG forbids loops and branching.
+C: # route -> retrieve -> grade -> (rewrite | generate)
+
+@ Pre-retrieval optimization | 1
+D: Improvements applied before retrieval, such as query rewriting, expansion, routing and better chunking.
+T: HyDE is a pre-retrieval technique.
+F: Reranking is a pre-retrieval technique.
+C: query = rewrite(conversation, question)
+
+@ Post-retrieval optimization | 1
+D: Improvements applied after retrieval, such as reranking, compression, de-duplication and reordering.
+T: Context compression is a post-retrieval step.
+F: Chunking is a post-retrieval optimization.
+C: docs = compress(rerank(q, docs))
+
+@ Context compression | 1
+D: Shrinking retrieved context by extracting only the relevant sentences before generation.
+U: Retrieved chunks are long and only one sentence in each is relevant.
+T: Compression reduces prompt tokens and noise.
+F: Compression always adds more text to the context.
+C: ContextualCompressionRetriever(base_compressor=LLMChainExtractor.from_llm(llm), base_retriever=r)
+
+@ Multi-query retrieval | 2
+D: Generating several rephrasings of a question, retrieving for each and merging the results.
+U: Users phrase the same question in many different ways.
+T: Multi-query retrieval improves recall across phrasings.
+F: Multi-query retrieval reduces the number of retrieval calls to one.
+C: variants = llm("Give 3 search queries for: " + q)
+
+@ RAG-Fusion | 2
+D: Multi-query retrieval combined with Reciprocal Rank Fusion of the result lists.
+T: RAG-Fusion merges the lists of several generated queries with RRF.
+F: RAG-Fusion fuses two LLM answers instead of retrieval results.
+C: fused = rrf([retriever.invoke(v) for v in variants])
+
+@ HyDE | 2
+D: Generating a hypothetical answer passage and using its embedding to search.
+T: HyDE bridges the style gap between short questions and long documents.
+F: HyDE requires no LLM call.
+C: hypo = llm(f"Write a passage that answers: {q}")\ndocs = store.similarity_search(hypo)
+
+@ Step-back prompting | 2
+D: Asking a more general question first and retrieving for both the general and the original question.
+U: A specific question needs underlying principles to answer well.
+T: Step-back prompting retrieves high-level principles plus specific details.
+F: Step-back prompting makes the question more specific.
+C: general = llm(f"What general question underlies: {q}?")
+
+@ Query decomposition | 2
+D: Breaking a complex question into sub-questions, answering each, then synthesizing a final answer.
+U: "Compare the revenue growth of Acme and Globex in 2025."
+T: Sub-questions can be answered in parallel or sequentially.
+F: Decomposition merges several questions into one.
+C: subqs = ["Acme revenue growth 2025", "Globex revenue growth 2025"]
+
+@ Logical routing | 3
+D: Choosing a data source with rules such as keywords, regex or metadata.
+T: A regex for "invoice #" can route to the billing database.
+F: Logical routing requires an embedding model.
+C: if re.search(r"invoice #\d+", q):\n    source = "billing_db"
+
+@ Semantic routing | 3
+D: Embedding the query and picking the route whose description or examples are most similar.
+T: Semantic routing compares the query embedding to route embeddings.
+F: Semantic routing always uses an LLM to write SQL.
+C: route = max(routes, key=lambda r: cos(embed(q), r.embedding))
+
+@ LLM router | 3
+D: An LLM with structured output that classifies which data source should answer the query.
+U: Questions may need product docs, an orders database or web search.
+T: A Literal-typed Pydantic field constrains the router's choices.
+F: LLM routers cannot output structured choices.
+C: class Route(BaseModel):\n    datasource: Literal["product_docs", "orders_sql", "web_search"]
+
+@ Text-to-SQL | 3
+D: Having an LLM translate a question into SQL over structured data, then executing it.
+U: "How many orders over $500 were placed last month?"
+T: Text-to-SQL is better than vector search for aggregations over tables.
+F: Text-to-SQL is best for fuzzy questions over unstructured PDFs.
+C: sql = llm(f"Schema: {schema}\nWrite SQL for: {q}")
+
+@ Fan-out retrieval | 3
+D: Querying several sources in parallel and fusing their results.
+T: Fan-out helps when several sources may hold the answer.
+F: Fan-out queries only one source at a time.
+C: results = await asyncio.gather(docs.ainvoke(q), wiki.ainvoke(q))
+
+@ Parent-document retrieval | 4
+D: Searching small child chunks but returning their larger parent chunk or document to the LLM.
+U: Small chunks match precisely but lack enough surrounding context to answer.
+T: Parent-document retrieval follows the principle "search small, read big".
+F: Parent-document retrieval embeds only the parent documents.
+C: ParentDocumentRetriever(vectorstore=vs, docstore=store, child_splitter=small, parent_splitter=large)
+
+@ Sentence-window retrieval | 4
+D: Embedding single sentences and replacing a matched sentence with a window of neighbouring sentences at query time.
+T: Sentence-window retrieval stores the window in node metadata.
+F: Sentence-window retrieval returns only the single matched sentence.
+C: SentenceWindowNodeParser.from_defaults(window_size=3)
+
+@ Auto-merging retrieval | 4
+D: Merging retrieved child chunks into their parent when enough siblings are retrieved.
+T: Auto-merging uses hierarchical chunks such as 2048/512/128 tokens.
+F: Auto-merging splits parents into smaller pieces at query time.
+C: AutoMergingRetriever(base_retriever, storage_context)
+
+@ Multi-vector indexing | 4
+D: Indexing summaries or hypothetical questions per chunk while returning the original chunk.
+U: User questions don't look like your dense reference text.
+T: Indexing generated questions per chunk can match user questions better.
+F: Multi-vector indexing returns the summaries instead of the original chunks.
+C: for q in llm_questions(chunk):\n    index.add(embed(q), ref=chunk.id)
+
+@ RAPTOR | 4
+D: Recursive Abstractive Processing for Tree-Organized Retrieval: cluster chunks, summarize clusters, repeat to build a tree.
+U: Questions range from specific details to whole-document themes.
+T: RAPTOR can retrieve from both leaves and higher-level summaries.
+F: RAPTOR stores only the root summary.
+C: # leaves -> cluster -> summarize -> cluster summaries -> ... -> root
+
+@ Collapsed-tree retrieval | 4
+D: RAPTOR's query mode that searches all tree levels at once.
+T: Collapsed-tree retrieval considers leaves and summaries together.
+F: Collapsed-tree retrieval only searches the root node.
+C: candidates = all_nodes_from_every_level
+
+@ Contextual retrieval | 5
+D: Prepending an LLM-written, chunk-specific context to each chunk before embedding and BM25 indexing.
+U: Chunks like "Revenue grew 3%" are ambiguous without the company and quarter.
+T: Anthropic reported a 49% drop in top-20 retrieval failures with contextual embeddings plus contextual BM25.
+F: Contextual retrieval requires no LLM calls.
+C: context = llm(f"<document>{doc}</document>\nSituate this chunk: <chunk>{chunk}</chunk>")\nindex(context + "\n" + chunk)
+
+@ Prompt caching for contextual retrieval | 5
+D: Caching the whole document in the prompt so generating context for each of its chunks is cheap.
+T: Prompt caching makes contextual retrieval affordable at scale.
+F: Prompt caching stores the embeddings in the LLM.
+C: # cache <document> once, then process each chunk
+
+@ Contextual retrieval with reranking | 5
+D: Adding a reranker on top of contextual embeddings and contextual BM25.
+T: Anthropic reported a 67% reduction in retrieval failures when reranking was added.
+F: Reranking always makes contextual retrieval worse.
+C: top = rerank(q, contextual_hybrid_search(q, k=150))[:20]
+
+@ Late chunking | 5
+D: Encoding the whole document with a long-context embedding model first, then pooling token embeddings per chunk span.
+T: Late chunking gives chunk vectors document-level context without extra LLM calls.
+F: Late chunking embeds each chunk independently before seeing the document.
+C: tokens = encoder(full_document)\nchunk_vecs = [mean(tokens[s:e]) for s, e in spans]
+
+@ Header prepending | 5
+D: Adding the document title and section path to each chunk's text before embedding.
+T: Header prepending is a zero-cost way to add context to chunks.
+F: Header prepending requires a vision model.
+C: text = f"{doc.title} > {section}\n{chunk}"
+
+@ Corrective RAG | 6
+D: CRAG: a retrieval evaluator grades documents and triggers corrective actions such as refinement or web search.
+U: Your retriever sometimes returns irrelevant documents and you want a fallback.
+T: In CRAG, documents graded incorrect trigger web search.
+F: CRAG trusts every retrieved document without checking it.
+C: g.add_conditional_edges("grade", lambda s: "web" if s["web_needed"] else "generate")
+
+@ Retrieval evaluator | 6
+D: A lightweight model or LLM grader that labels retrieved documents as relevant or not.
+T: The CRAG evaluator outputs Correct, Incorrect or Ambiguous.
+F: The retrieval evaluator generates the final answer.
+C: grade = grader.invoke({"question": q, "document": d}).relevant
+
+@ Knowledge strips | 6
+D: Small segments of retrieved documents that CRAG filters to keep only relevant information.
+T: CRAG decomposes correct documents into knowledge strips and filters them.
+F: Knowledge strips are web search queries.
+C: strips = split_into_sentences(doc)\nkeep = [s for s in strips if relevant(q, s)]
+
+@ Ambiguous action | 6
+D: CRAG's action when relevance is uncertain: combine refined documents with web search results.
+T: The ambiguous action uses both internal and external knowledge.
+F: The ambiguous action discards all knowledge.
+C: docs = refine(internal_docs) + web_search(rewrite(q))
+
+@ Self-RAG | 7
+D: A method training a model to emit reflection tokens that decide when to retrieve and critique relevance, support and usefulness.
+T: Self-RAG retrieves on demand rather than for every query.
+F: Self-RAG always retrieves exactly five documents.
+C: # [Retrieve] -> [ISREL] -> [ISSUP] -> [ISUSE]
+
+@ Reflection tokens | 7
+D: Special Self-RAG tokens like Retrieve, ISREL, ISSUP and ISUSE that control retrieval and critique outputs.
+T: ISSUP judges whether the generation is supported by the passage.
+F: ISREL judges how useful the final answer is.
+C: # ISREL: relevant? ISSUP: supported? ISUSE: useful (1-5)?
+
+@ Hallucination grader | 7
+D: An LLM check that the generated answer is grounded in the retrieved documents.
+T: A failed hallucination check can trigger regeneration.
+F: A hallucination grader checks the user's grammar.
+C: grounded = grader.invoke({"docs": docs, "answer": answer}).binary_score
+
+@ Answer grader | 7
+D: An LLM check that the answer actually addresses the user's question.
+T: If the answer is unhelpful, the query can be rewritten and retrieval repeated.
+F: The answer grader measures retrieval latency.
+C: useful = answer_grader.invoke({"question": q, "answer": answer}).binary_score
+
+@ Adaptive RAG | 7
+D: Routing queries by complexity to no retrieval, single-step retrieval or multi-step retrieval.
+U: Most questions are easy, but some need iterative multi-hop research.
+T: Adaptive RAG saves cost by skipping retrieval for simple questions.
+F: Adaptive RAG always uses the most expensive multi-step strategy.
+C: route = complexity_classifier(q)  # "simple" | "moderate" | "complex"
+
+@ IRCoT | 7
+D: Interleaving retrieval with chain-of-thought so each reasoning step can trigger a new retrieval.
+T: IRCoT targets multi-hop questions.
+F: IRCoT retrieves only once before reasoning.
+C: # think -> retrieve -> think -> retrieve -> answer
+
+@ Agentic RAG | 8
+D: An agent decides whether, where, how and how many times to retrieve, using retrieval as tools in a reasoning loop.
+U: Questions require combining docs, a SQL table and several searches.
+T: Agentic RAG can iterate: search, read, refine the query and search again.
+F: Agentic RAG always performs exactly one retrieval.
+C: agent = create_agent(model, tools=[search_docs, query_incidents], system_prompt="Search before answering.")
+
+@ Deep research agent | 8
+D: A long-horizon agent that plans, runs many searches and synthesizes a report.
+T: Deep research agents trade latency for thoroughness.
+F: Deep research agents answer in a single LLM call.
+C: # plan -> search x N -> read -> synthesize report
+
+@ Loop limits | 8
+D: Caps on agent iterations or model calls to bound cost and latency.
+T: Limiting model calls prevents runaway agentic RAG loops.
+F: Agentic RAG should never have iteration limits.
+C: middleware=[ModelCallLimitMiddleware(run_limit=8)]
+
+@ Multimodal RAG | 9
+D: RAG over documents containing images, charts, tables and scans, not just text.
+U: Answers live in charts inside slide decks and scanned PDFs.
+T: Text-only pipelines can lose information stored in images and charts.
+F: Multimodal RAG only works with plain text files.
+C: # PDF -> page images -> vision retriever -> VLM
+
+@ ColPali | 9
+D: A vision retriever that embeds document page images as multi-vectors and scores them with ColBERT-style MaxSim.
+U: You want to retrieve pages from visually rich PDFs without OCR pipelines.
+T: ColPali skips OCR and layout parsing.
+F: ColPali requires converting every page to text first.
+C: # page image -> multi-vector embedding; query tokens -> MaxSim
+
+@ Image captioning for RAG | 9
+D: Describing images with a vision-language model so they can be indexed as text.
+T: Captions make images searchable with a text-only pipeline.
+F: Captioning preserves every visual detail perfectly.
+C: caption = vlm("Describe this chart in detail", image)
+
+@ Multimodal embeddings | 9
+D: Embedding models that map images and text into a shared vector space, such as CLIP.
+T: Shared-space embeddings let text queries retrieve images directly.
+F: Multimodal embeddings require images and text to be stored in separate incompatible spaces.
+C: clip.encode_text("red bicycle") ~ clip.encode_image(photo)
+
+@ Table handling | 9
+D: Keeping tables intact as Markdown/HTML, adding summaries, and using SQL or code for numeric questions.
+T: For numeric questions over tables, a SQL or code tool beats pure text retrieval.
+F: Tables should always be split row by row across random chunks.
+C: df = pd.read_html(table_html)[0]\ndf[df.region == "EU"].revenue.sum()
+
+@ Long-context models | 10
+D: Models with very large context windows (around a million tokens) that can read whole documents per request.
+T: Long context raises cost and latency on every request.
+F: Long-context models make retrieval unnecessary for every use case.
+C: llm.invoke(whole_handbook + question)
+
+@ Cache-Augmented Generation | 10
+D: Preloading a small, stable knowledge base into the context once and reusing the KV cache across queries.
+U: A 50-page product manual rarely changes and is queried thousands of times a day.
+T: CAG avoids retrieval errors but only suits small, stable corpora.
+F: CAG works best for huge corpora that change every minute.
+C: # cached prefix = full manual; each request appends only the question
+
+@ Architecture selection | 10
+D: Choosing the simplest architecture that passes your evaluations, adding components for observed failures.
+T: Start simple and add complexity only for failing question types.
+F: You should always start with the most complex agentic architecture.
+C: # baseline -> eval -> fix the biggest failure mode -> repeat
+
+@ RAG guardrails | 10
+D: Controls like refusals when context is missing, PII handling and prompt-injection defences for retrieved text.
+T: Retrieved text should be treated as untrusted input.
+F: Guardrails are unnecessary when using RAG.
+C: if not docs:\n    return "I couldn't find this in the documents."
+
+% pre-retrieval technique | 2 | query rewriting; multi-query generation; HyDE; step-back prompting; query decomposition; query routing | post-retrieval technique
+% post-retrieval technique | 1 | reranking; context compression; de-duplication; long-context reordering; knowledge-strip filtering | pre-retrieval technique
+% hierarchical retrieval technique | 4 | parent-document retrieval; sentence-window retrieval; auto-merging retrieval; RAPTOR | self-correcting RAG technique
+% self-correcting RAG technique | 6 | Corrective RAG (CRAG); Self-RAG; hallucination grading; answer grading | hierarchical retrieval technique
+% Self-RAG reflection token | 7 | Retrieve; ISREL; ISSUP; ISUSE
+% CRAG retrieval grade | 6 | Correct; Incorrect; Ambiguous
+% routing strategy | 3 | logical (rule-based) routing; semantic routing; LLM classifier routing; agent-based tool choice
+% multimodal RAG approach | 9 | convert pages to text with OCR/parsers; caption images with a VLM; multimodal embeddings; page-image retrieval with ColPali
+% chunk-context enrichment technique | 5 | contextual retrieval; late chunking; header prepending; multi-vector summaries
+
+> Corrective RAG flow | 6 | retrieve documents ; grade each document's relevance ; if none are relevant, rewrite the query and run web search ; generate the answer from the corrected knowledge
+> Self-RAG-style loop without fine-tuning | 7 | retrieve and grade documents ; generate an answer ; check the answer is grounded ; check the answer addresses the question ; regenerate or rewrite the query if a check fails
+> Contextual retrieval indexing | 5 | split the document into chunks ; for each chunk, ask an LLM for situating context using the cached document ; prepend the context to the chunk ; build embeddings and BM25 on the contextualized chunks
+> RAPTOR tree construction | 4 | embed leaf chunks ; cluster similar chunks ; summarize each cluster with an LLM ; repeat clustering and summarizing up to a root
