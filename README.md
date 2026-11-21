@@ -1,56 +1,110 @@
-# LearnAIoffline: native Android app
+<div align="center">
 
-An offline Android app (Kotlin + Jetpack Compose) that teaches the modern AI-engineering stack step by step, with **16 topics, 140 lessons, 1,116 key concepts and 52,800 multiple-choice questions (3,300 per topic)**. Every question has a hint, sample code where it helps, a full explanation and a link back to the lesson.
+<img src="play_store/icon-512.png" alt="LearnAIoffline app icon" width="128" height="128" />
+
+# LearnAIoffline
+
+**Your AI field guide. Entirely offline.**
+
+Learn the modern AI-engineering stack on your Android phone: 16 topics, 140 lessons,<br/>
+1,116 key concepts and 52,800 practice questions. No account, no ads, no internet needed.
+
+<a href="https://play.google.com/store/apps/details?id=com.sjpixels.learnaioffline">
+  <img alt="Get it on Google Play" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" height="80" />
+</a>
+
+![Platform](https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white)
+![Min SDK](https://img.shields.io/badge/minSdk-26%20(Android%208.0)-165741)
+![Target SDK](https://img.shields.io/badge/targetSdk-36-165741)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.2.20-7F52FF?logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)
+![Offline](https://img.shields.io/badge/works-100%25%20offline-165741)
+![Permissions](https://img.shields.io/badge/permissions-none-165741)
+
+</div>
+
+---
+
+## 📱 Screenshots
+
+<p align="center">
+  <img src="play_store/screenshots/01-home.png" width="24%" alt="Home: continue learning, daily goal and your topics" />
+  <img src="play_store/screenshots/02-learn.png" width="24%" alt="Learn: course library with 16 topics" />
+  <img src="play_store/screenshots/03-lesson.png" width="24%" alt="Lesson reader with copyable code" />
+  <img src="play_store/screenshots/04-quiz.png" width="24%" alt="Practice question with explanation" />
+</p>
+<p align="center">
+  <img src="play_store/screenshots/05-progress.png" width="24%" alt="Progress: streak, accuracy, this week" />
+  <img src="play_store/screenshots/06-flash.png" width="24%" alt="Flashcards for key concepts" />
+  <img src="play_store/screenshots/07-theme.png" width="24%" alt="10 colour themes" />
+  <img src="play_store/screenshots/08-dark.png" width="24%" alt="Dark mode" />
+</p>
+
+## ✨ Highlights
+
+| | |
+|---|---|
+| 📚 **Learn** | 140 handbook-style lessons with a section index, field notes, tables and syntax-highlighted code you can copy |
+| 🎯 **Practice** | 52,800 multiple-choice questions (3,300 per topic), each with a hint, sample code, an explanation and a link to its lesson |
+| 🧩 **Seven practice modes** | Continue in order, random set, by lesson, review mistakes, unanswered, bookmarked, start from a number, plus a filterable question bank |
+| 🗂️ **Key concepts** | A glossary of 1,116 concepts with search, plus flashcards |
+| 📈 **Progress** | Daily goal, streaks, accuracy, study time, a this-week chart, per-topic and per-lesson progress, daily history |
+| 🎨 **Themes** | Light, dark or system; an animated day/night switch; 10 colour themes (all WCAG AA); wallpaper colours on Android 12+; AMOLED black |
+| 📖 **Comfortable reading** | Adjustable text size, line spacing, code size and code theme |
+| 🔒 **Private by design** | Fully offline, no accounts, no ads, no analytics, no permissions. Progress lives in local SQLite, with export / import in Settings |
+
+## 🧠 What you'll learn
 
 | # | Topic | Lessons | Questions |
-|---|---|---|---|
-| 1 | Python for AI Engineers | 10 | 3,300 |
-| 2 | FastAPI | 9 | 3,300 |
-| 3 | LangChain | 9 | 3,300 |
-| 4 | LangGraph | 9 | 3,300 |
-| 5 | Langfuse | 8 | 3,300 |
-| 6 | LlamaIndex | 9 | 3,300 |
-| 7 | Vector RAG | 9 | 3,300 |
-| 8 | Graph RAG | 7 | 3,300 |
-| 9 | Hybrid RAG | 7 | 3,300 |
-| 10 | RAG Architectures (with examples) | 10 | 3,300 |
-| 11 | Agentic AI & Frameworks (CrewAI, LangGraph, OpenAI Agents SDK, Google ADK, Microsoft Agent Framework/AutoGen, smolagents…) | 10 | 3,300 |
-| 12 | Text Embedding Models | 8 | 3,300 |
-| 13 | LLM Models | 9 | 3,300 |
-| 14 | RAGAS | 8 | 3,300 |
-| 15 | AI Frameworks Landscape | 9 | 3,300 |
-| 16 | Model Context Protocol (MCP) | 9 | 3,300 |
+|:-:|---|:-:|:-:|
+| 1 | 🐍 Python for AI Engineers | 10 | 3,300 |
+| 2 | ⚡ FastAPI | 9 | 3,300 |
+| 3 | 🦜 LangChain | 9 | 3,300 |
+| 4 | 🕸️ LangGraph | 9 | 3,300 |
+| 5 | 🪢 Langfuse | 8 | 3,300 |
+| 6 | 🦙 LlamaIndex | 9 | 3,300 |
+| 7 | 🧭 Vector RAG | 9 | 3,300 |
+| 8 | 🔗 Graph RAG | 7 | 3,300 |
+| 9 | 🧬 Hybrid RAG | 7 | 3,300 |
+| 10 | 🏗️ RAG Architectures (with examples) | 10 | 3,300 |
+| 11 | 🤖 Agentic AI & Frameworks (CrewAI, LangGraph, OpenAI Agents SDK, Google ADK, Microsoft Agent Framework, smolagents…) | 10 | 3,300 |
+| 12 | 📐 Text Embedding Models | 8 | 3,300 |
+| 13 | 🧠 LLM Models | 9 | 3,300 |
+| 14 | 📊 RAGAS | 8 | 3,300 |
+| 15 | 🧰 AI Frameworks Landscape | 9 | 3,300 |
+| 16 | 🔌 Model Context Protocol (MCP) | 9 | 3,300 |
+| | **Total** | **140** | **52,800** |
 
-## Features
+## 🛠️ Tech stack
 
-- **Design:** the LearnAIoffline "Field Notes" design kit (`design/ui-kit/`), built with Material 3: forest-green handbook style, lattice illustrations, monospace metadata.
-- **Themes:** light, dark or follow system; an animated day/night switch on Home, the tabs and Settings; 10 colour themes (Forest, Ocean, Violet, Sunset, Teal, Indigo, Rose, Amber, Berry, Graphite), all WCAG AA; wallpaper colours on Android 12+; AMOLED black; separate light/dark code theme.
-- **First run:** a 4-step welcome tour (offline intro, practice, daily goal, look and colour theme) that can be replayed from Settings.
-- **Home:** continue card with resume, daily goal, your topics and a 4-week study activity strip.
-- **Learn:** course library with search, bookmarks and In progress / Completed filters; topic overview with course progress and shortcuts; lesson reader with a section index, field-note callouts, tables, copyable syntax-highlighted code and Previous / Mark complete / Next.
-- **Key concepts:** a glossary of all 1,116 concepts (or one topic) with search, plus flashcards.
-- **Practice:** quick set plus seven modes (continue in order, random, by lesson, mistakes, unanswered, bookmarked, from a number); quiz setup with topic, mode and set size; hints with sample code; explanations with a link to the lesson; a summary with accuracy, time and mistakes to review; a question bank with topic, lesson, type and state filters.
-- **Progress:** streak, accuracy and study time, a this-week chart, per-topic and per-lesson progress, daily history and day detail, bookmarks.
-- **Settings:** reading text size and line spacing, code size and theme, practice set size, daily goal, export / import / reset progress.
-- **Private:** fully offline, no accounts, no ads, no analytics and no permissions. All progress is stored in local SQLite.
+| Area | Choice |
+|---|---|
+| Language | Kotlin 2.2.20 |
+| UI | Jetpack Compose (BOM 2025.10.01), Material 3, AndroidX Core SplashScreen |
+| Build | Android Gradle Plugin 8.13.2, Gradle 8.14.3, JDK 17, R8 shrinking for release |
+| Storage | SQLite (progress, bookmarks, history) and SharedPreferences (settings) |
+| Content | JSON assets generated by a Python pipeline (`content/`) |
+| Design | "Field Notes" kit in `design/ui-kit/` (tokens, components, icons, screen mockups) |
+| CI | GitHub Actions: debug APK, release APK and release AAB on every push |
 
-## Repository layout
+## 📂 Repository layout
 
 ```
-android/                 Android Studio project (open this folder)
-  app/src/main/java/...  Kotlin sources (data layer, navigation, Compose screens)
-  app/src/main/assets/content/   generated course content (topics, lessons, questions, glossary JSON)
-content/                 content pipeline (lessons in Markdown, fact files, question generators)
-play_store/              store listing text, 512px icon, 1024×500 feature graphic, Play Console answers
-.github/workflows/       CI that builds the debug APK, release APK and release AAB
-PRIVACY_POLICY.md        privacy policy (docs/privacy-policy.html is the same, ready to host)
+android/                       Android Studio project (open this folder)
+  app/src/main/java/...        Kotlin sources: data layer, navigation, Compose screens, theme
+  app/src/main/assets/content/ generated course content (topics, lessons, questions, glossary JSON)
+content/                       content pipeline: lessons (Markdown), fact files, question generators
+design/ui-kit/                 LearnAIoffline design kit: brand, icons, Compose tokens, mockups
+play_store/                    store listing, 512 px icon, feature graphic, screenshots
+docs/privacy-policy.html       privacy policy, ready to host (same as PRIVACY_POLICY.md)
+.github/workflows/             CI that builds the debug APK, release APK and release AAB
 ```
 
-## 1. Build and run
+## 🚀 Build and run
 
 ### Android Studio (easiest)
 1. Install a recent stable **Android Studio** (it must support Android Gradle Plugin 8.13).
-2. **File › Open** the `android/` folder. Let Gradle sync; it downloads Gradle 8.14.3, AGP 8.13.2, Kotlin 2.2.20 and Compose (BOM 2025.10.01).
+2. **File › Open** the `android/` folder and let Gradle sync.
 3. Pick an emulator or a USB-connected phone (Android 8.0 / API 26 or newer) and press **Run**.
 
 ### Command line
@@ -61,47 +115,40 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### GitHub Actions (no local setup)
-Push this folder to a GitHub repository. The workflow in `.github/workflows/android.yml` builds on every push and uploads three artifacts: **debug-apk**, **release-apk** and **release-aab**. You can also start it by hand from the **Actions** tab (*Run workflow*).
+### GitHub Actions
+`.github/workflows/android.yml` builds on every push and uploads three artifacts: **debug-apk**, **release-apk** and **release-aab**. You can also start it by hand from the **Actions** tab (*Run workflow*).
 
-## 2. Before publishing: make it yours
+## 🔐 Signing a release
 
-1. **Application ID:** set to `com.sjpixels.learnaioffline` in `android/app/build.gradle.kts` (debug builds add `.debug`). Play can't change it after the first upload. `namespace` stays `com.aiengineer.academy` (the Kotlin package).
-2. **Version:** raise `versionCode` (an integer) for every upload, and update `versionName` (the label users see).
-3. **Contact:** add your support email to `PRIVACY_POLICY.md` and `docs/privacy-policy.html`.
+| | |
+|---|---|
+| Application ID | `com.sjpixels.learnaioffline` (debug builds add `.debug`). It can't change after the first Play upload. `namespace` stays `com.aiengineer.academy`, the Kotlin package. |
+| Version | Raise `versionCode` for every upload and update `versionName` in `android/app/build.gradle.kts`. |
+| Upload key | `android/upload-keystore.jks` with passwords in `android/keystore.properties`. Both are git-ignored. **Keep a backup of both.** |
 
-## 3. Create an upload key and sign the release
+**Local:** `cd android && ./gradlew bundleRelease` writes the signed bundle to `app/build/outputs/bundle/release/app-release.aab`.
 
+**CI (optional):** add four repository secrets and the **release-aab** artifact is signed too:
+- `SIGNING_KEYSTORE_BASE64`: the output of `base64 -i upload-keystore.jks` (macOS) or `base64 -w0 upload-keystore.jks` (Linux)
+- `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`
+
+Play App Signing is on: Google keeps the app-signing key, and each upload is signed with the upload key.
+
+To create a new upload key (only if you ever need to reset it):
 ```bash
-keytool -genkeypair -v -keystore upload-keystore.jks -alias upload \
-  -keyalg RSA -keysize 2048 -validity 10000
+keytool -genkeypair -v -keystore upload-keystore.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
 ```
-Keep the `.jks` file and its passwords safe and backed up. Never commit them; `.gitignore` already excludes them.
 
-- **Local:** copy `android/keystore.properties.example` to `android/keystore.properties`, fill it in, then run `./gradlew bundleRelease`. The signed bundle is written to `app/build/outputs/bundle/release/app-release.aab`.
-- **CI:** add four repository secrets:
-  - `SIGNING_KEYSTORE_BASE64`: the output of `base64 -w0 upload-keystore.jks`; on macOS, `base64 -i upload-keystore.jks`.
-  - `SIGNING_STORE_PASSWORD`
-  - `SIGNING_KEY_ALIAS`
-  - `SIGNING_KEY_PASSWORD`
+## 🏪 Publishing on Google Play
 
-  The **release-aab** artifact is then signed and ready to upload.
+This app is published from an **organisation** developer account, so it can go straight to production (the 12-tester closed test only applies to new personal accounts).
 
-Play App Signing is switched on automatically on your first upload. Google keeps the app-signing key, and you sign each upload with your upload key.
+1. **Create app:** name *LearnAIoffline*, package `com.sjpixels.learnaioffline`, App, Free.
+2. **Store listing:** texts from `design/ui-kit/LearnAIoffline/Google-Play/Listing.txt`; upload `play_store/icon-512.png`, `play_store/feature-graphic-1024x500.png` and the 8 images in `play_store/screenshots/` (1080 × 1920).
+3. **App content:** privacy policy URL (host `docs/privacy-policy.html`), no ads, no login needed, content rating (Education), target audience 18+, Data safety: no data collected or shared.
+4. **Production:** upload the signed `.aab`, add release notes, choose all countries and send for review.
 
-## 4. Publish on Google Play
-
-1. Create a **Google Play Console** developer account. There is a one-time $25 fee and identity verification.
-2. **Create app:** enter the name *LearnAIoffline*, choose App and Free, and accept the declarations.
-3. **Store listing:** copy the texts from `play_store/store_listing.md`. Upload `play_store/icon-512.png` and `play_store/feature-graphic-1024x500.png`, plus 2–8 phone screenshots taken from the running app.
-4. **App content:** fill in the privacy policy URL, ads (none), app access (no login), content rating, target audience (18+) and the **Data safety** form (*no data collected or shared*). `play_store/store_listing.md` has every answer.
-   - To get a public privacy policy URL for free, enable GitHub Pages on the repository with source = `docs/` folder. The URL is then `https://<user>.github.io/<repo>/privacy-policy.html`.
-5. **Testing:**
-   - Upload the signed `.aab` to **Internal testing** first and install it on your own phone.
-   - **New personal developer accounts** must then run a **closed test with at least 12 testers who stay opted in for 14 days in a row** before production access is unlocked. Organisation accounts are exempt.
-6. **Production:** create a production release with the same `.aab`, or a newer `versionCode`, and submit it for review. The app targets API 36, which meets Play's current target-API requirement.
-
-## 5. Updating the course content (optional)
+## 🧪 Updating the course content
 
 The content is generated and validated by Python scripts in `content/`:
 
@@ -110,22 +157,34 @@ cd content
 python3 -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 python3 build_all.py        # lessons, 52,800 questions, glossary and topics.json -> android/app/src/main/assets/content
-python3 validate.py         # checks: 3,300 per topic, no duplicates, 4 unique options, valid answer/lesson/snippet links
+python3 build_all.py mcp    # rebuild only the listed topic ids; the others in topics.json are kept
+python3 validate.py         # 3,300 per topic, no duplicates, 4 unique options, valid answer/lesson/snippet links
 ```
-
-Run `python3 build_all.py mcp` (any topic ids) to rebuild only those topics; the others in `topics.json` are kept.
 
 - `lessons/*.md`: the lessons. `## ` starts a lesson and `### ` starts a section.
 - `facts/*.txt`: the curated knowledge base used for concept questions and the glossary.
-- `generators/*.py`: computed questions. Code-output and API-behaviour questions are produced by actually running the code with Python, FastAPI's TestClient, LangChain, LangGraph and LlamaIndex Workflows. Calculation questions use exact arithmetic.
+- `generators/*.py`: computed questions. Code-output and API-behaviour answers come from actually running the code (Python, FastAPI's TestClient, LangChain, LangGraph, LlamaIndex Workflows and plain-Python MCP message handling); calculations use exact arithmetic.
 - `enrich_hints.py`: points every hint to a lesson section and attaches sample code from that lesson.
 
 To fix or add a question, edit the fact or lesson, re-run `build_all.py` and `validate.py`, then rebuild the app.
 
-## How this was checked
+## ✅ Quality checks
 
-- `validate.py` passes for all 52,800 questions with 0 problems. The correct answer position is evenly balanced across A to D.
-- The Kotlin sources were type-checked with the Kotlin 2.2.20 compiler, with Compose's `@Composable` call checks, against signature stubs of the Android and Compose APIs they use. The result was 0 errors.
-- The full Gradle build has **not** been run against the real Android SDK yet. The machine that produced this project couldn't reach Google's Maven repository. Your first Android Studio sync or GitHub Actions run is that final check. If the toolchain reports anything, it should be a small, local fix.
+- `validate.py` passes for all 52,800 questions with 0 problems; the correct answer position is balanced across A to D.
+- Debug and R8-shrunk release builds compile cleanly and were tested on an Android 16 (API 36) emulator in light and dark mode.
+- All 20 colour schemes (10 themes × light/dark) pass WCAG AA contrast; the weakest text pair is 6.3:1.
 
-Content reflects these fast-moving libraries as of late 2026. Product names are trademarks of their owners, and this is an independent learning resource.
+## 🔒 Privacy
+
+LearnAIoffline collects no personal data. Progress, bookmarks and settings stay on the device (and in the user's own Android backup if enabled). See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
+
+---
+
+<div align="center">
+
+**Developed by [Sj.Pixels](https://sjpixels.com/)**
+
+© 2026 Sj.Pixels. All rights reserved.<br/>
+<sub>Content reflects these fast-moving libraries as of late 2026. Product and framework names are trademarks of their respective owners; this is an independent learning resource. Google Play and the Google Play logo are trademarks of Google LLC.</sub>
+
+</div>
